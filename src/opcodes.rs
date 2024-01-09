@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+pub const EXN: u8 = 0x00;
 pub const HALT: u8 = 0x01;
 pub const NOP: u8 = 0x02;
-pub const EXN: u8 = 0x03;
 pub const J: u8 = 0x08;
 pub const JR: u8 = 0x09;
 pub const JAL: u8 = 0x0A;

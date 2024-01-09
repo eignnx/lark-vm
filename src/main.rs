@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 
-use std::mem;
+use std::{mem, path::PathBuf};
 
 use bitvec::prelude::*;
 
 mod decode;
+mod exn_codes;
 mod opcodes;
 
 #[macro_export]
@@ -17,26 +18,56 @@ macro_rules! log {
     };
 }
 
+macro_rules! log_instr {
+    ([$size:expr] $name:ident) => {
+        if cfg!(debug_assertions) {
+            print!("[LOG]: ");
+            print!("|{}|", $size);
+            print!("\t{}", stringify!($name));
+            println!();
+        }
+    };
+    ([$size:expr] $name:ident $firstargval:expr $(, $argval:expr)*) => {
+        if cfg!(debug_assertions) {
+            print!("[LOG]: ");
+            print!("|{}|", $size);
+            print!("\t{}\t", stringify!($name));
+            print!("{}={}", stringify!($firstargval), $firstargval);
+            $(
+                print!(", {}={}", stringify!($argval), $argval);
+            )*
+            println!();
+        }
+    };
+}
+
 fn main() {
-    let Some(path) = std::env::args().nth(1) else {
+    let Some(rom_path) = std::env::args().nth(1) else {
         eprintln!("usage: lark <PATH-TO-ROM-BIN>");
         std::process::exit(1);
     };
 
-    let vec = std::fs::read(path).expect("Failed to read ROM file");
+    let rom_path = PathBuf::from(rom_path);
+    let rom_path_no_ext = rom_path.with_extension("");
+    let src_path = rom_path_no_ext.with_extension("lark");
+
+    let vec = std::fs::read(&rom_path).expect("Failed to read ROM file");
     let size = vec.len();
     let rom = MemBlock::from_vec(vec).expect("ROM file too large");
 
-    let mut cpu = Cpu::new(Memory::ROM_START, rom);
-    for i in Memory::ROM_START..Memory::ROM_START + size as u16 {
-        let byte = cpu.mem.read_u8(i);
-        print!("{:02X} ", byte);
-        // print!("{:08b} ", byte);
-        if i % 16 == 15 {
-            println!();
+    let mut cpu = Cpu::new(Memory::ROM_START, rom, Some(src_path));
+
+    if cfg!(debug_assertions) {
+        for i in Memory::ROM_START..Memory::ROM_START + size as u16 {
+            let byte = cpu.mem.read_u8(i);
+            print!("{:02X} ", byte);
+            if i % 16 == 15 {
+                println!();
+            }
         }
+        println!();
     }
-    println!();
+
     cpu.run();
 }
 
@@ -75,10 +106,12 @@ pub struct Cpu {
     pub lo: s16,
 
     pub mem: Memory,
+
+    pub rom_src_path: Option<PathBuf>,
 }
 
 impl Cpu {
-    pub fn new(start_addr: u16, rom: MemBlock<ROM_SIZE>) -> Self {
+    pub fn new(start_addr: u16, rom: MemBlock<ROM_SIZE>, rom_src_path: Option<PathBuf>) -> Self {
         Self {
             regs: RegisterFile {
                 indexed_u16: [0; 15],
@@ -88,6 +121,7 @@ impl Cpu {
             hi: s16::default(),
             lo: s16::default(),
             mem: Memory::new(rom),
+            rom_src_path,
         }
     }
 
@@ -132,29 +166,33 @@ impl Cpu {
         let opcode = ir[..6].load::<u8>();
         let ir = &ir[6..];
 
-        log!(
-            "pc={}, instr={:02X}@{:X}",
-            self.pc,
-            opcode,
-            ir.load::<u32>()
-        );
+        if cfg!(debug_assertions) {
+            print!("pc={}, ir=0b{:032b}\t", self.pc, self.ir);
+        }
 
         match opcode {
+            opcodes::EXN => {
+                let (size, imm10) = decode::imm10(ir);
+                log_instr!([size] exn imm10);
+                self.handle_exn(imm10);
+                self.pc += size;
+            }
+
             opcodes::HALT => {
-                log!("[1]\thalt");
+                log_instr!([1] halt);
                 std::process::exit(0);
             }
 
             opcodes::LI => {
-                let (size, rd, imm) = decode::reg_simm(ir);
-                log!("[{size}]\tli rd={}, imm={}", rd, imm);
-                self.regs.write_i16(rd, imm);
+                let (size, rd, simm16) = decode::reg_simm(ir);
+                log_instr!([size] li rd, simm16);
+                self.regs.write_i16(rd, simm16);
                 self.pc += size;
             }
 
             opcodes::ADD => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\tadd rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] add rd, rs, rt);
                 let sum = self.regs.read_i16(rs) + self.regs.read_i16(rt);
                 self.regs.write_i16(rd, sum);
                 self.pc += size;
@@ -162,7 +200,7 @@ impl Cpu {
 
             opcodes::ADDU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\taddu rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] addu rd, rs, rt);
                 let sum = self.regs.read_u16(rs) + self.regs.read_u16(rt);
                 self.regs.write_u16(rd, sum);
                 self.pc += size;
@@ -170,7 +208,7 @@ impl Cpu {
 
             opcodes::ADDI => {
                 let (size, rd, rs, imm) = decode::reg_reg_simm(ir);
-                log!("[{size}]\taddi rd={}, rs={}, imm={}", rd, rs, imm);
+                log_instr!([size] addi rd, rs, imm);
                 let sum = self.regs.read_i16(rs) + imm;
                 self.regs.write_i16(rd, sum);
                 self.pc += size;
@@ -178,7 +216,7 @@ impl Cpu {
 
             opcodes::SUB => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\tsub rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] sub rd, rs, rt);
                 let sum = self.regs.read_i16(rs) - self.regs.read_i16(rt);
                 self.regs.write_i16(rd, sum);
                 self.pc += size;
@@ -186,7 +224,7 @@ impl Cpu {
 
             opcodes::SUBU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\tsubu rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] subu rd, rs, rt);
                 let sum = self.regs.read_u16(rs) - self.regs.read_u16(rt);
                 self.regs.write_u16(rd, sum);
                 self.pc += size;
@@ -194,7 +232,7 @@ impl Cpu {
 
             opcodes::SUBI => {
                 let (size, rd, rs, imm) = decode::reg_reg_simm(ir);
-                log!("[{size}]\tsubi rd={}, rs={}, imm={}", rd, rs, imm);
+                log_instr!([size] subi rd, rs, imm);
                 let sum = self.regs.read_i16(rs) - imm;
                 self.regs.write_i16(rd, sum);
                 self.pc += size;
@@ -202,13 +240,13 @@ impl Cpu {
 
             opcodes::JR => {
                 let (size, rs) = decode::reg(ir);
-                log!("[{size}]\tjr rs={}", rs);
+                log_instr!([size] jr rs);
                 self.pc = self.regs.read_u16(rs);
             }
 
             opcodes::J => {
                 let (size, offset) = decode::simm16(ir);
-                log!("[{size}]\tj offset={}", offset);
+                log_instr!([size] j offset);
                 self.pc = (self.pc as i32)
                     .checked_add(offset as i32)
                     .expect("Jump address overflow") as u16;
@@ -218,7 +256,7 @@ impl Cpu {
             // Example: jal $rd, ADDR
             opcodes::JAL => {
                 let (size, rd, offset) = decode::reg_simm(ir);
-                log!("[{size}]\tjal rd={}, offset={}", rd, offset,);
+                log_instr!([size] jal rd, offset);
                 self.regs.write_u16(rd, self.pc + size);
                 self.pc = (self.pc as i32 + offset as i32) as u16;
             }
@@ -229,14 +267,14 @@ impl Cpu {
             //          save pc    jump address
             opcodes::JRAL => {
                 let (size, rd, rs) = decode::reg_reg(ir);
-                log!("[{size}]\tjral rd={}, rs={}", rd, rs);
+                log_instr!([size] jral rd, rs);
                 self.regs.write_u16(rd, self.pc + size);
                 self.pc = self.regs.read_u16(rs);
             }
 
             opcodes::TLT => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\ttlt rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] tlt rd, rs, rt);
                 let value = self.regs.read_i16(rs) < self.regs.read_i16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -244,7 +282,7 @@ impl Cpu {
 
             opcodes::TLTU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\ttltu rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] tltu rd, rs, rt);
                 let value = self.regs.read_u16(rs) < self.regs.read_u16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -252,7 +290,7 @@ impl Cpu {
 
             opcodes::TGE => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\ttge rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] tge rd, rs, rt);
                 let value = self.regs.read_i16(rs) >= self.regs.read_i16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -260,7 +298,7 @@ impl Cpu {
 
             opcodes::TGEU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\ttgeu rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] tgeu rd, rs, rt);
                 let value = self.regs.read_u16(rs) >= self.regs.read_u16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -268,7 +306,7 @@ impl Cpu {
 
             opcodes::TEQ => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\tteq rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] teq rd, rs, rt);
                 let value = self.regs.read_i16(rs) == self.regs.read_i16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -276,7 +314,7 @@ impl Cpu {
 
             opcodes::TNE => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
-                log!("[{size}]\ttne rd={}, rs={}, rt={}", rd, rs, rt);
+                log_instr!([size] tne rd, rs, rt);
                 let value = self.regs.read_i16(rs) != self.regs.read_i16(rt);
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -284,7 +322,7 @@ impl Cpu {
 
             opcodes::TEZ => {
                 let (size, rd, rs) = decode::reg_reg(ir);
-                log!("[{size}]\ttez rd={}, rs={}", rd, rs);
+                log_instr!([size] tez rd, rs);
                 let value = self.regs.read_i16(rs) == 0;
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -292,7 +330,7 @@ impl Cpu {
 
             opcodes::TNZ => {
                 let (size, rd, rs) = decode::reg_reg(ir);
-                log!("[{size}]\ttnz rd={}, rs={}", rd, rs,);
+                log_instr!([size] tnz rd, rs);
                 let value = self.regs.read_i16(rs) != 0;
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
@@ -301,7 +339,7 @@ impl Cpu {
             // Branch if false.
             opcodes::BF => {
                 let (size, rs, addr_offset) = decode::reg_simm(ir);
-                log!("[{size}]\tbf rs={}, addr_offset={}", rs, addr_offset);
+                log_instr!([size] bf rs, addr_offset);
                 if self.regs.read_u16(rs) == 0 {
                     self.pc = (self.pc as i32 + addr_offset as i32) as u16;
                 } else {
@@ -312,7 +350,7 @@ impl Cpu {
             // Branch if true.
             opcodes::BT => {
                 let (size, rs, addr_offset) = decode::reg_simm(ir);
-                log!("[{size}]\tbt rs={}, addr_offset={}", rs, addr_offset);
+                log_instr!([size] bt rs, addr_offset);
                 if self.regs.read_u16(rs) != 0 {
                     self.pc = (self.pc as i32 + addr_offset as i32) as u16;
                 } else {
@@ -322,20 +360,20 @@ impl Cpu {
 
             opcodes::NOT => {
                 let (size, rd, rs) = decode::reg_reg(ir);
-                log!("[{size}]\tnot rd={}, rs={}", rd, rs);
+                log_instr!([size] not rd, rs);
                 let value = self.regs.read_u16(rs) == 0;
                 self.regs.write_u16(rd, value as u16);
                 self.pc += size;
             }
 
             opcodes::NOP => {
-                log!("[1]\tnop");
+                log_instr!([1] nop);
                 self.pc += 1;
             }
 
             opcodes::MUL => {
                 let (size, rs, rt) = decode::reg_reg(ir);
-                log!("[{size}]\tmul rs={}, rt={}", rs, rt);
+                log_instr!([size] mul rs, rt);
 
                 let product = self.regs.read_i16(rs) as i32 * self.regs.read_i16(rt) as i32;
                 let product = unsafe { mem::transmute::<i32, u32>(product) };
@@ -349,7 +387,7 @@ impl Cpu {
 
             opcodes::MULU => {
                 let (size, rs, rt) = decode::reg_reg(ir);
-                log!("[{size}]\tmulu rs={}, rt={}", rs, rt);
+                log_instr!([size] mulu rs, rt);
 
                 let product: u32 = self.regs.read_u16(rs) as u32 * self.regs.read_u16(rt) as u32;
                 let product: &BitSlice<u32, Lsb0> = product.view_bits();
@@ -362,26 +400,21 @@ impl Cpu {
 
             opcodes::MVLO => {
                 let (size, rd) = decode::reg(ir);
-                log!("[{size}]\tmvlo rd={}", rd);
+                log_instr!([size] mvlo rd);
                 self.regs.write_u16(rd, unsafe { self.lo.u16 });
                 self.pc += size;
             }
 
             opcodes::MVHI => {
                 let (size, rd) = decode::reg(ir);
-                log!("[{size}]\tmvhi rd={}", rd);
+                log_instr!([size] mvhi rd);
                 self.regs.write_u16(rd, unsafe { self.hi.u16 });
                 self.pc += size;
             }
 
             opcodes::LW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir);
-                log!(
-                    "[{size}]\tlw rd={}, rs={}, addr_offset={}",
-                    rd,
-                    rs,
-                    addr_offset
-                );
+                log_instr!([size] lw rd, rs, addr_offset);
                 let addr_base = self.regs.read_u16(rs);
                 let value = self.mem_read_u16(addr_base, addr_offset);
                 self.regs.write_u16(rd, value);
@@ -390,12 +423,7 @@ impl Cpu {
 
             opcodes::LBU => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir);
-                log!(
-                    "[{size}]\tlbu rd={}, rs={}, addr_offset={}",
-                    rd,
-                    rs,
-                    addr_offset
-                );
+                log_instr!([size] lbu rd, rs, addr_offset);
                 let addr_base = self.regs.read_u16(rs);
                 let value = self.mem_read_u8(addr_base, addr_offset);
                 self.regs.write_u16(rd, value as u16);
@@ -411,12 +439,7 @@ impl Cpu {
             //              value reg (rs)
             opcodes::SW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir);
-                log!(
-                    "[{size}]\tsw rd={}, rs={}, addr_offset={}",
-                    rd,
-                    rs,
-                    addr_offset
-                );
+                log_instr!([size] sw rd, rs, addr_offset);
                 let addr_base = self.regs.read_u16(rd);
                 let value = self.regs.read_u16(rs);
                 self.mem_write_u16(addr_base, addr_offset, value);
@@ -425,19 +448,78 @@ impl Cpu {
 
             opcodes::SB => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir);
-                log!(
-                    "[{size}]\tsb rd={}, rs={}, addr_offset={}",
-                    rd,
-                    rs,
-                    addr_offset
-                );
+                log_instr!([size] sb rd, rs, addr_offset);
                 let addr_base = self.regs.read_u16(rd);
                 let value = (self.regs.read_u16(rs) & 0x00FF) as u8;
                 self.mem_write_u8(addr_base, addr_offset, value);
                 self.pc += size;
             }
 
+            opcodes::SEB => {
+                let (size, rd, rs) = decode::reg_reg(ir);
+                log_instr!([size] seb rd, rs);
+                let value = (self.regs.read_u16(rs) & 0x00FF) as u8;
+                let value = unsafe { std::mem::transmute::<u8, i8>(value) };
+                let value = value as i16;
+                self.regs.write_i16(rd, value);
+                self.pc += size;
+            }
+
+            opcodes::SHL => {
+                let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
+                log_instr!([size] shl rd, rs, rt);
+                let value = self.regs.read_u16(rs) << self.regs.read_u16(rt);
+                self.regs.write_u16(rd, value);
+                self.pc += size;
+            }
+
+            opcodes::SHR => {
+                let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
+                log_instr!([size] shr rd, rs, rt);
+                let value = self.regs.read_u16(rs) >> self.regs.read_u16(rt);
+                self.regs.write_u16(rd, value);
+                self.pc += size;
+            }
+
+            // Shift right arithmetic.
+            opcodes::SHRA => {
+                let (size, rd, rs, rt) = decode::reg_reg_reg(ir);
+                log_instr!([size] shra rd, rs, rt);
+                // Will perform sign-extension after shifting.
+                let value = self.regs.read_i16(rs) >> self.regs.read_u16(rt);
+                self.regs.write_i16(rd, value);
+                self.pc += size;
+            }
+
             other => unimplemented!("unimplemented opcode `0x{:X?}` (pc={})", other, self.pc),
+        }
+    }
+
+    fn handle_exn(&self, code: u16) {
+        match code {
+            exn_codes::ILLEGAL_INSTR => {
+                eprintln!("Illegal instruction at pc={}: 0x{:X?}", self.pc, self.ir);
+                std::process::exit(1);
+            }
+            exn_codes::DEBUG_BREAKPOINT => {
+                let lineno = unsafe { self.regs.named.a0 };
+                let location = format!(
+                    "romfile: {}:{}",
+                    self.rom_src_path
+                        .as_ref()
+                        .map(|p| p.to_string_lossy())
+                        .unwrap_or_else(|| "<unknown>".into()),
+                    lineno
+                );
+                eprintln!("Breakpoint Exception: {location}");
+                eprintln!("\t(at pc={})", self.pc);
+                std::process::exit(0);
+            }
+            exn_codes::DIV_BY_ZERO => {
+                eprintln!("Division by zero at pc={}", self.pc);
+                std::process::exit(1);
+            }
+            other => unimplemented!("unimplemented exception code `0x{:X?}`", other),
         }
     }
 }
