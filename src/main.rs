@@ -167,7 +167,7 @@ impl Cpu {
         let ir = &ir[6..];
 
         if cfg!(debug_assertions) {
-            print!("pc={}, ir=0b{:032b}\t", self.pc, self.ir);
+            print!("pc={}\t", self.pc);
         }
 
         match opcode {
