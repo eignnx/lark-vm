@@ -222,8 +222,15 @@ impl MemRw for Mmio {
     }
 
     fn write_u8(&mut self, addr: u16, value: u8) {
+        use yansi::Paint;
         match addr {
-            1 => println!("MMIO[{addr}] = 0x{value:02X}, {:?}", value as char),
+            1 => println!(
+                "MMIO[{addr}] <- {v}_u8 = 0x{h:02X} = {c:?}",
+                addr = Paint::cyan(format!("0x{:04X}", addr)),
+                v = Paint::green(value).bold(),
+                h = value,
+                c = value as char,
+            ),
             _ => unimplemented!("unimplemented MMIO u8 write to address {}", addr),
         }
     }
@@ -232,8 +239,18 @@ impl MemRw for Mmio {
         unimplemented!("unimplemented MMIO s16 read from address {}", addr);
     }
 
-    fn write_s16(&mut self, addr: u16, _value: s16) {
-        unimplemented!("unimplemented MMIO s16 write to address {}", addr);
+    fn write_s16(&mut self, addr: u16, value: s16) {
+        use yansi::Paint;
+        match addr {
+            1 => println!(
+                "MMIO[{addr}] <- {v}_u16 = 0x{h:04X} = {c:?}",
+                addr = Paint::cyan(format!("0x{:04X}", addr)),
+                v = Paint::green(value.as_u16()).bold(),
+                h = value.as_u16(),
+                c = char::from_u32(*value.as_u16() as u32)
+            ),
+            _ => unimplemented!("unimplemented MMIO s16 write to address {}", addr),
+        }
     }
 }
 
@@ -280,7 +297,7 @@ impl<const N: usize> MemRw for MemBlock<N> {
         let value: u16 = value.into();
         let hi = (value >> 8) as u8;
         let lo = (0x00FF & value) as u8;
-        self.mem[addr as usize + 0] = lo;
-        self.mem[addr as usize + 1] = hi;
+        self.mem[addr as usize + 1] = lo;
+        self.mem[addr as usize + 0] = hi;
     }
 }

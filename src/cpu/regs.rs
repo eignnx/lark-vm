@@ -55,7 +55,8 @@ pub const REG_NAMES: [&str; 16] = [
 impl FromStr for Reg {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match if s.starts_with('$') { &s[1..] } else { s } {
+        let stripped = s.strip_prefix('$').unwrap_or(s);
+        match stripped {
             "zero" => Ok(Self::Zero),
             "rv" => Ok(Self::Rv),
             "ra" => Ok(Self::Ra),
@@ -132,5 +133,12 @@ impl RegisterFile {
         if let Some(rd) = Self::reg_offset(rd) {
             self.indexed[rd] = value.into()
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Reg, s16)> + '_ {
+        self.indexed
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| (Reg::try_from(i as u8 + 1).unwrap(), v))
     }
 }

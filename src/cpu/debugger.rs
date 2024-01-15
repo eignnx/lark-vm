@@ -10,7 +10,7 @@ impl Cpu {
     pub fn breakpoint(&mut self) {
         use std::io::{self, BufRead, Write};
 
-        if !cfg!(debug_assertions) || !self.in_debug_mode {
+        if !self.in_debug_mode {
             return;
         }
 
@@ -33,15 +33,17 @@ impl Cpu {
                 DbgCmd::Eval(DbgVal::U16(0))
             });
 
-            println!("cmd: {:?}", cmd);
+            self.eval_dbg_cmd(&cmd);
 
-            self.eval_dbg_cmd(cmd);
+            if let DbgCmd::Continue = cmd {
+                break;
+            }
 
             line.clear();
         }
     }
 
-    fn eval_dbg_cmd(&mut self, cmd: DbgCmd) {
+    fn eval_dbg_cmd(&mut self, cmd: &DbgCmd) {
         match cmd {
             DbgCmd::Eval(DbgVal::Spr(Spr::Ir)) => println!("-> {:0b}", self.ir),
             DbgCmd::Eval(val) => println!("-> {}", self.eval_dbg_val_rvalue(val)),
@@ -50,7 +52,7 @@ impl Cpu {
                 let old = self.set_lvalue(lhs, rhs);
                 println!("{old} -> {rhs}",)
             }
-            DbgCmd::PrintStack { depth } => self.print_stack(depth),
+            DbgCmd::PrintStack { depth } => self.print_stack(*depth),
             DbgCmd::ListBreakpoints => {
                 println!("breakpoints:");
                 for (i, bp) in self.breakpoints.iter().enumerate() {
@@ -79,13 +81,28 @@ impl Cpu {
                     address
                 );
             }
+            DbgCmd::Continue => {
+                self.in_debug_mode = false;
+                println!("continuing execution...");
+            }
+            DbgCmd::PrintRegs => {
+                println!("general-purpose registers:");
+                for (regname, regval) in self.regs.iter() {
+                    println!("\t${regname} = 0x{v:04X} = {v}", v = regval.as_u16());
+                }
+                println!("special-purpose registers:");
+                println!("\t${} = 0x{v:04X} = {v}", Spr::Lo, v = *self.lo.as_u16());
+                println!("\t${} = 0x{v:04X} = {v}", Spr::Hi, v = *self.hi.as_u16());
+                println!("\t${} = 0x{v:04X} = {v}", Spr::Pc, v = self.pc,);
+                println!("\t${} = 0x{v:08X} = {v} = 0b{v:032b}", Spr::Ir, v = self.ir);
+            }
         }
     }
 
-    fn eval_dbg_val_rvalue(&mut self, val: DbgVal) -> u16 {
+    fn eval_dbg_val_rvalue(&mut self, val: &DbgVal) -> u16 {
         match val {
-            DbgVal::U16(val) => val,
-            DbgVal::Gpr(reg) => self.regs.get(reg),
+            DbgVal::U16(val) => *val,
+            DbgVal::Gpr(reg) => self.regs.get(*reg),
             DbgVal::Spr(spr) => match spr {
                 Spr::Pc => self.pc,
                 Spr::Ir => unreachable!(),
@@ -93,20 +110,20 @@ impl Cpu {
                 Spr::Hi => *self.hi.as_u16(),
             },
             DbgVal::Mem { base, offset } => {
-                let base = self.eval_dbg_val_rvalue(*base);
-                let offset = self.eval_dbg_val_rvalue(*offset) as i16;
+                let base = self.eval_dbg_val_rvalue(base);
+                let offset = self.eval_dbg_val_rvalue(offset) as i16;
                 *self.mem_read_s16(base, offset).as_u16()
             }
-            DbgVal::Neg(val) => self.eval_dbg_val_rvalue(*val).wrapping_neg(),
+            DbgVal::Neg(val) => self.eval_dbg_val_rvalue(val).wrapping_neg(),
         }
     }
 
     /// Returns the the previous value of the lvalue.
-    fn set_lvalue(&mut self, lhs: DbgVal, rhs: u16) -> u16 {
+    fn set_lvalue(&mut self, lhs: &DbgVal, rhs: u16) -> u16 {
         match lhs {
             DbgVal::Gpr(reg) => {
-                let prev = self.regs.get(reg);
-                self.regs.set(reg, rhs);
+                let prev = self.regs.get(*reg);
+                self.regs.set(*reg, rhs);
                 prev
             }
             DbgVal::Spr(Spr::Ir) => panic!("cannot assign to $ir"),
@@ -126,8 +143,8 @@ impl Cpu {
                 prev
             }
             DbgVal::Mem { base, offset } => {
-                let base = self.eval_dbg_val_rvalue(*base);
-                let offset = *s16::from(self.eval_dbg_val_rvalue(*offset)).as_i16();
+                let base = self.eval_dbg_val_rvalue(base);
+                let offset = *s16::from(self.eval_dbg_val_rvalue(offset)).as_i16();
                 let prev = *self.mem_read_s16(base, offset).as_u16();
                 self.mem_write_s16(base, offset, rhs.into());
                 prev
@@ -155,6 +172,8 @@ enum DbgCmd {
     ListBreakpoints,
     AddBreakpoint(DbgVal),
     RemoveBreakpoint(DbgVal),
+    Continue,
+    PrintRegs,
 }
 
 impl DbgCmd {
@@ -191,6 +210,8 @@ impl DbgCmd {
             ),
             // Try parsing a list breakpoints command.
             alt(("b", "breakpoints")).map(|_| Self::ListBreakpoints),
+            alt(("c", "continue")).map(|_| Self::Continue),
+            alt(("r", "regs")).map(|_| Self::PrintRegs),
         ))
         .parse_next(s)
     }
@@ -264,16 +285,25 @@ enum Spr {
     Hi,
 }
 
+impl std::fmt::Display for Spr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Self::Pc => "pc",
+            Self::Ir => "ir",
+            Self::Lo => "lo",
+            Self::Hi => "hi",
+        };
+        write!(f, "{}", name)
+    }
+}
+
 const SPR_NAMES: [&str; 4] = ["pc", "ir", "lo", "hi"];
 
 impl FromStr for Spr {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match if s.starts_with('$') {
-            s.strip_prefix('$').unwrap()
-        } else {
-            s
-        } {
+        let stripped = s.strip_prefix('$').unwrap_or(s);
+        match stripped {
             "pc" => Ok(Self::Pc),
             "ir" => Ok(Self::Ir),
             "lo" => Ok(Self::Lo),

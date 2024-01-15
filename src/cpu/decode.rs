@@ -15,22 +15,22 @@ const REG_BITS: usize = 4;
 #[derive(Debug, Clone, Copy)]
 pub enum RegDecodeErr {
     /// The instruction's destination register is invalid.
-    InvalidRd(u8),
+    Rd(u8),
     /// The instruction's first source register is invalid.
-    InvalidRs(u8),
+    Rs(u8),
     /// The instruction's second source register is invalid.
-    InvalidRt(u8),
+    Rt(u8),
     /// The instruction's single destination/source register is invalid.
-    InvalidReg(u8),
+    Reg(u8),
 }
 
 impl std::fmt::Display for RegDecodeErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RegDecodeErr::InvalidRd(rd) => write!(f, "decoded an invalid rd: {}", rd),
-            RegDecodeErr::InvalidRs(rs) => write!(f, "decoded an invalid rs: {}", rs),
-            RegDecodeErr::InvalidRt(rt) => write!(f, "decoded an invalid rt: {}", rt),
-            RegDecodeErr::InvalidReg(reg) => write!(f, "decoded an invalid reg: {}", reg),
+            RegDecodeErr::Rd(rd) => write!(f, "decoded an invalid rd: {}", rd),
+            RegDecodeErr::Rs(rs) => write!(f, "decoded an invalid rs: {}", rs),
+            RegDecodeErr::Rt(rt) => write!(f, "decoded an invalid rt: {}", rt),
+            RegDecodeErr::Reg(reg) => write!(f, "decoded an invalid reg: {}", reg),
         }
     }
 }
@@ -76,7 +76,7 @@ pub fn reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg)> {
     let reg = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidReg)?;
+        .map_err(RegDecodeErr::Reg)?;
     Ok((instr_size(REG_BITS), reg))
 }
 
@@ -84,11 +84,11 @@ pub fn reg_reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg)> {
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRd)?;
+        .map_err(RegDecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRs)?;
+        .map_err(RegDecodeErr::Rs)?;
     Ok((instr_size(2 * REG_BITS), rd, rs))
 }
 
@@ -97,15 +97,15 @@ pub fn reg_reg_reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg, Reg)> {
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRd)?;
+        .map_err(RegDecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRs)?;
+        .map_err(RegDecodeErr::Rs)?;
     let rt = instr[8..12]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRt)?;
+        .map_err(RegDecodeErr::Rt)?;
     Ok((instr_size(3 * REG_BITS), rd, rs, rt))
 }
 
@@ -123,7 +123,7 @@ pub fn reg_simm(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, i16)> {
     let rd = instr[0..REG_BITS]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRd)?;
+        .map_err(RegDecodeErr::Rd)?;
     let imm = instr[REG_BITS..][..SIMM_BITS].load_le::<i16>();
     Ok((instr_size(REG_BITS + SIMM_BITS), rd, imm))
 }
@@ -134,11 +134,11 @@ pub fn reg_reg_simm(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg, i16)> 
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRd)?;
+        .map_err(RegDecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::InvalidRs)?;
+        .map_err(RegDecodeErr::Rs)?;
     let imm = instr[8..][..SIMM_BITS].load_le::<i16>();
     Ok((instr_size(2 * REG_BITS + SIMM_BITS), rd, rs, imm))
 }
