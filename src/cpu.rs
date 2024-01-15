@@ -35,18 +35,33 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(start_addr: u16, rom: MemBlock<ROM_SIZE>, rom_src_path: Option<PathBuf>) -> Self {
+    pub fn new(rom: MemBlock<ROM_SIZE>) -> Self {
         Self {
             regs: RegisterFile::new(STACK_INIT),
-            pc: start_addr,
+            pc: 0,
             ir: 0,
             hi: s16::default(),
             lo: s16::default(),
             mem: Memory::new(rom),
-            in_debug_mode: cfg!(debug_assertions),
+            in_debug_mode: false,
             breakpoints: BTreeSet::new(),
-            rom_src_path,
+            rom_src_path: None,
         }
+    }
+
+    pub fn with_start_addr(mut self, start_addr: u16) -> Self {
+        self.pc = start_addr;
+        self
+    }
+
+    pub fn in_debug_mode(mut self, debug: bool) -> Self {
+        self.in_debug_mode = debug;
+        self
+    }
+
+    pub fn with_rom_src_path(mut self, rom_src_path: PathBuf) -> Self {
+        self.rom_src_path = Some(rom_src_path);
+        self
     }
 
     pub fn run(&mut self) {
@@ -121,9 +136,9 @@ impl Cpu {
     }
 }
 
-const ROM_SIZE: usize = 4 * KIB;
-const USER_MEM_SIZE: usize = 54 * KIB;
-const KERNEL_MEM_SIZE: usize = 4 * KIB;
+pub const ROM_SIZE: usize = 4 * KIB;
+pub const USER_MEM_SIZE: usize = 54 * KIB;
+pub const KERNEL_MEM_SIZE: usize = 4 * KIB;
 
 pub trait MemRw {
     fn read_u8(&self, addr: u16) -> u8;
@@ -217,8 +232,8 @@ impl Mmio {
 }
 
 impl MemRw for Mmio {
-    fn read_u8(&self, _addr: u16) -> u8 {
-        todo!()
+    fn read_u8(&self, addr: u16) -> u8 {
+        unimplemented!("unimplemented MMIO u8 read from address {}", addr);
     }
 
     fn write_u8(&mut self, addr: u16, value: u8) {

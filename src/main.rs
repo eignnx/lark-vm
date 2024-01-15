@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
-use std::path::PathBuf;
+use clap::Parser;
 
-use cpu::{Cpu, MemBlock, Memory};
+use cpu::{Cpu, MemBlock, MemRw, Memory};
 
-use crate::cpu::MemRw;
-
+mod cli;
 mod cpu;
 mod log;
 mod utils;
@@ -19,22 +18,27 @@ fn main() {
         }
     }
 
-    let Some(rom_path) = std::env::args().nth(1) else {
-        eprintln!("usage: lark <PATH-TO-ROM-BIN>");
+    let cli = cli::Cli::parse();
+
+    let vec = std::fs::read(&cli.romfile).expect("Failed to read ROM file");
+    let size = vec.len();
+    let Some(rom) = MemBlock::from_vec(vec) else {
+        eprintln!("ROM file is too large:");
+        eprintln!(
+            "\tFile `{}` requires {} bytes. ROM has only {} bytes.",
+            cli.romfile.display(),
+            size,
+            cpu::ROM_SIZE,
+        );
         std::process::exit(1);
     };
 
-    let rom_path = PathBuf::from(rom_path);
-    let rom_path_no_ext = rom_path.with_extension("");
-    let src_path = rom_path_no_ext.with_extension("lark");
+    let mut cpu = Cpu::new(rom)
+        .with_start_addr(Memory::ROM_START)
+        .in_debug_mode(cli.debug)
+        .with_rom_src_path(cli.rom_src_path());
 
-    let vec = std::fs::read(&rom_path).expect("Failed to read ROM file");
-    let size = vec.len();
-    let rom = MemBlock::from_vec(vec).expect("ROM file too large");
-
-    let mut cpu = Cpu::new(Memory::ROM_START, rom, Some(src_path));
-
-    if cfg!(debug_assertions) {
+    if cli.print_rom {
         for i in Memory::ROM_START..Memory::ROM_START + size as u16 {
             let byte = cpu.mem.read_u8(i);
             print!("{:02X} ", byte);
