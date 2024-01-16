@@ -27,7 +27,7 @@ macro_rules! log_instr {
             match stringify!($firstargval) {
                 "rd" | "rs" | "rt" => {
                     print!("{}", Paint::magenta(
-                        <$crate::cpu::regs::Reg as std::convert::TryFrom<u8>>::try_from($firstargval as u8).unwrap().to_string()
+                        $firstargval.to_string()
                     ));
                 },
                 _ => {
@@ -38,7 +38,7 @@ macro_rules! log_instr {
             match stringify!($argval) {
                 "rd" | "rs" | "rt" => {
                     print!(", {}", Paint::magenta(
-                        <$crate::cpu::regs::Reg as std::convert::TryFrom<u8>>::try_from($firstargval as u8).unwrap().to_string()
+                        $argval.to_string()
                     ));
                 },
                 _ => {

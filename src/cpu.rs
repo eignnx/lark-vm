@@ -240,10 +240,10 @@ impl MemRw for Mmio {
         use yansi::Paint;
         match addr {
             1 => println!(
-                "MMIO[{addr}] <- {v}_u8 = 0x{h:02X} = {c:?}",
+                "MMIO[{addr}] <- {v}_u8 = {h} = {c:?}",
                 addr = Paint::cyan(format!("0x{:04X}", addr)),
-                v = Paint::green(value).bold(),
-                h = value,
+                v = Paint::green(value),
+                h = Paint::green(format!("0x{:02X}", value)),
                 c = value as char,
             ),
             _ => unimplemented!("unimplemented MMIO u8 write to address {}", addr),
@@ -258,10 +258,10 @@ impl MemRw for Mmio {
         use yansi::Paint;
         match addr {
             1 => println!(
-                "MMIO[{addr}] <- {v}_u16 = 0x{h:04X} = {c:?}",
+                "MMIO[{addr}] <- {v}_u16 = {h} = {c:?}",
                 addr = Paint::cyan(format!("0x{:04X}", addr)),
-                v = Paint::green(value.as_u16()).bold(),
-                h = value.as_u16(),
+                v = Paint::green(value.as_u16()),
+                h = Paint::green(format!("0x{:04X}", value.as_u16())),
                 c = char::from_u32(*value.as_u16() as u32)
             ),
             _ => unimplemented!("unimplemented MMIO s16 write to address {}", addr),
