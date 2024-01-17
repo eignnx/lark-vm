@@ -113,6 +113,7 @@ impl Cpu {
                 eprintln!("Illegal instruction at pc={}: 0x{:X?}", self.pc, self.ir);
                 std::process::exit(1);
             }
+
             exn_codes::DEBUG_BREAKPOINT => {
                 let lineno: u16 = self.regs.get(Reg::A0);
                 let location = format!(
@@ -127,10 +128,22 @@ impl Cpu {
                 eprintln!("\t(at pc={})", self.pc);
                 std::process::exit(0);
             }
+
             exn_codes::DIV_BY_ZERO => {
                 eprintln!("Division by zero at pc={}", self.pc);
                 std::process::exit(1);
             }
+
+            exn_codes::DEBUG_PUTS => {
+                let s_ptr = self.regs.get(Reg::A0);
+                let s_len = self.regs.get(Reg::A1);
+                let s = (0..s_len)
+                    .map(|i| self.mem_read_u8(s_ptr, i))
+                    .map(char::from)
+                    .collect::<String>();
+                println!("DEBUG_PUTS: {}", s);
+            }
+
             other => unimplemented!("unimplemented exception code `0x{:X?}`", other),
         }
     }
