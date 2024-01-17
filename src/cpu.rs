@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, path::PathBuf};
 
-use crate::{cpu::regs::Reg, utils::s16};
+use crate::utils::s16;
 
 use self::regs::RegisterFile;
 
@@ -105,47 +105,6 @@ impl Cpu {
         let lo = *self.mem.read_s16(self.pc + 2).as_u16() as u32;
         let hi = *self.mem.read_s16(self.pc + 0).as_u16() as u32;
         self.ir = (hi << 16) | (lo << 0);
-    }
-
-    fn handle_exn(&self, code: u16) {
-        match code {
-            exn_codes::ILLEGAL_INSTR => {
-                eprintln!("Illegal instruction at pc={}: 0x{:X?}", self.pc, self.ir);
-                std::process::exit(1);
-            }
-
-            exn_codes::DEBUG_BREAKPOINT => {
-                let lineno: u16 = self.regs.get(Reg::A0);
-                let location = format!(
-                    "romfile: {}:{}",
-                    self.rom_src_path
-                        .as_ref()
-                        .map(|p| p.to_string_lossy())
-                        .unwrap_or_else(|| "<unknown>".into()),
-                    lineno
-                );
-                eprintln!("Breakpoint Exception: {location}");
-                eprintln!("\t(at pc={})", self.pc);
-                std::process::exit(0);
-            }
-
-            exn_codes::DIV_BY_ZERO => {
-                eprintln!("Division by zero at pc={}", self.pc);
-                std::process::exit(1);
-            }
-
-            exn_codes::DEBUG_PUTS => {
-                let s_ptr = self.regs.get(Reg::A0);
-                let s_len = self.regs.get(Reg::A1);
-                let s = (0..s_len)
-                    .map(|i| self.mem_read_u8(s_ptr, i))
-                    .map(char::from)
-                    .collect::<String>();
-                println!("DEBUG_PUTS: {}", s);
-            }
-
-            other => unimplemented!("unimplemented exception code `0x{:X?}`", other),
-        }
     }
 }
 
