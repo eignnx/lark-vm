@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.17", features = ["derive"] }
 winnow = "0.5.34"
-yansi = "0.5.1"
+yansi = "1.0.0-rc.1"
 
 [dependencies.bitvec]
 version = "1"

@@ -1,8 +1,9 @@
 use std::{collections::BTreeSet, path::PathBuf};
 
-use crate::utils::s16;
+use yansi::Paint;
 
 use self::regs::RegisterFile;
+use crate::utils::s16;
 
 mod debugger;
 mod decode;
@@ -209,13 +210,12 @@ impl MemRw for Mmio {
     }
 
     fn write_u8(&mut self, addr: u16, value: u8) {
-        use yansi::Paint;
         match addr {
             1 => println!(
-                "MMIO[{addr}] <- {v}_u8 = {h} = {c:?}",
-                addr = Paint::cyan(format!("0x{:04X}", addr)),
-                v = Paint::green(value),
-                h = Paint::green(format!("0x{:02X}", value)),
+                "MMIO[0x{addr:04X}] <- {v}_u8 = 0x{h:02X} = {c:?}",
+                addr = addr.cyan(),
+                v = value.green(),
+                h = value.green(),
                 c = value as char,
             ),
             _ => unimplemented!("unimplemented MMIO u8 write to address {}", addr),
@@ -227,13 +227,12 @@ impl MemRw for Mmio {
     }
 
     fn write_s16(&mut self, addr: u16, value: s16) {
-        use yansi::Paint;
         match addr {
             1 => println!(
-                "MMIO[{addr}] <- {v}_u16 = {h} = {c:?}",
-                addr = Paint::cyan(format!("0x{:04X}", addr)),
-                v = Paint::green(value.as_u16()),
-                h = Paint::green(format!("0x{:04X}", value.as_u16())),
+                "MMIO[0x{addr:04X}] <- {v}_u16 = 0x{h:04X} = {c:?}",
+                addr = addr.cyan(),
+                v = value.as_u16().green(),
+                h = value.as_u16().green(),
                 c = char::from_u32(*value.as_u16() as u32)
             ),
             _ => unimplemented!("unimplemented MMIO s16 write to address {}", addr),

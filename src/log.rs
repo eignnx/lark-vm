@@ -23,12 +23,10 @@ macro_rules! log_instr {
             use yansi::Paint;
             print!("[LOG]: ");
             print!("|{}|", $size);
-            print!("\t{}\t", Paint::yellow(stringify!($name)).bold());
+            print!("\t{}\t", stringify!($name).yellow().bold());
             match stringify!($firstargval) {
                 "rd" | "rs" | "rt" => {
-                    print!("{}", Paint::magenta(
-                        $firstargval.to_string()
-                    ));
+                    print!("{}", $firstargval.to_string().magenta());
                 },
                 _ => {
                     print!("{}={}", stringify!($firstargval), $firstargval);
@@ -37,9 +35,7 @@ macro_rules! log_instr {
             $(
             match stringify!($argval) {
                 "rd" | "rs" | "rt" => {
-                    print!(", {}", Paint::magenta(
-                        $argval.to_string()
-                    ));
+                    print!(", {}", $argval.to_string().magenta());
                 },
                 _ => {
                     print!(", {}={}", stringify!($argval), $argval);

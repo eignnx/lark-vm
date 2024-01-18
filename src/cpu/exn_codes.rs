@@ -47,7 +47,7 @@ impl Cpu {
                     .map(|i| self.mem_read_u8(s_ptr, i))
                     .map(char::from)
                     .collect::<String>();
-                println!("DEBUG_PUTS: {}", Paint::yellow(s).bold().italic());
+                println!("DEBUG_PUTS: {}", s.yellow().bold().italic());
             }
 
             other => unimplemented!("unimplemented exception code `0x{:X?}`", other),

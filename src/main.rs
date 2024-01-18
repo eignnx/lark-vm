@@ -10,14 +10,6 @@ mod log;
 mod utils;
 
 fn main() {
-    if cfg!(debug_assertions) {
-        use yansi::Paint;
-
-        if cfg!(windows) && !Paint::enable_windows_ascii() {
-            Paint::disable();
-        }
-    }
-
     let cli = cli::Cli::parse();
 
     let vec = std::fs::read(&cli.romfile).expect("Failed to read ROM file");
