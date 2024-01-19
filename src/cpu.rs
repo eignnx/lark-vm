@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, path::PathBuf};
+use std::{cell::RefCell, collections::BTreeSet, path::PathBuf, rc::Rc};
 
 use yansi::Paint;
 
@@ -14,6 +14,10 @@ mod regs;
 
 pub const KIB: usize = 1024;
 pub const STACK_INIT: u16 = Memory::USER_END - 1;
+
+pub const VTTY_COLS: usize = 80;
+pub const VTTY_ROWS: usize = 24;
+pub const VTTY_BYTES: usize = VTTY_COLS * VTTY_ROWS;
 
 pub struct Cpu {
     pub regs: RegisterFile,
@@ -36,14 +40,14 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(rom: MemBlock<ROM_SIZE>) -> Self {
+    pub fn new(rom: MemBlock<ROM_SIZE>, vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>) -> Self {
         Self {
             regs: RegisterFile::new(STACK_INIT),
             pc: 0,
             ir: 0,
             hi: s16::default(),
             lo: s16::default(),
-            mem: Memory::new(rom),
+            mem: Memory::new(rom, vtty_buf),
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
             rom_src_path: None,
@@ -137,9 +141,9 @@ impl Memory {
     pub const KERNEL_START: u16 = Self::USER_START + USER_MEM_SIZE as u16;
 
     /// Creates a new memory instance with the given ROM.
-    pub fn new(rom: MemBlock<ROM_SIZE>) -> Self {
+    pub fn new(rom: MemBlock<ROM_SIZE>, vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>) -> Self {
         Self {
-            mmio: Mmio::default(),
+            mmio: Mmio::new(vtty_buf),
             rom,
             user: MemBlock::new_zeroed(),
             kernel: MemBlock::new_zeroed(),
@@ -197,16 +201,31 @@ impl MemRw for Memory {
     }
 }
 
-#[derive(Default)]
-pub struct Mmio {}
+pub const VTTY_START: u16 = 128;
+pub const VTTY_END: u16 = VTTY_START + VTTY_BYTES as u16 - 1;
+
+pub struct Mmio {
+    vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>,
+}
 
 impl Mmio {
     pub const SIZE: u16 = 2 * KIB as u16;
+
+    pub fn new(vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>) -> Self {
+        Self { vtty_buf }
+    }
 }
 
 impl MemRw for Mmio {
     fn read_u8(&self, addr: u16) -> u8 {
-        unimplemented!("unimplemented MMIO u8 read from address {}", addr);
+        match addr {
+            VTTY_START..=VTTY_END => {
+                let addr = addr - VTTY_START;
+                let vtty_buf = self.vtty_buf.borrow();
+                vtty_buf.read_u8(addr)
+            }
+            _ => unimplemented!("unimplemented MMIO u8 read from address {}", addr),
+        }
     }
 
     fn write_u8(&mut self, addr: u16, value: u8) {
@@ -218,6 +237,11 @@ impl MemRw for Mmio {
                 h = value.green(),
                 c = value as char,
             ),
+            VTTY_START..=VTTY_END => {
+                let addr = addr - VTTY_START;
+                let mut vtty_buf = self.vtty_buf.borrow_mut();
+                vtty_buf.write_u8(addr, value);
+            }
             _ => unimplemented!("unimplemented MMIO u8 write to address {}", addr),
         }
     }
@@ -244,11 +268,17 @@ pub struct MemBlock<const N: usize> {
     pub mem: Box<[u8; N]>,
 }
 
-impl<const N: usize> MemBlock<N> {
-    pub fn new_zeroed() -> Self {
+impl<const N: usize> Default for MemBlock<N> {
+    fn default() -> Self {
         Self {
             mem: Box::new([0; N]),
         }
+    }
+}
+
+impl<const N: usize> MemBlock<N> {
+    pub fn new_zeroed() -> Self {
+        Self::default()
     }
 
     pub fn from_vec(vec: Vec<u8>) -> Option<Self> {
