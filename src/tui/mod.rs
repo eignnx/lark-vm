@@ -1,10 +1,9 @@
-use std::{cell::RefCell, io::BufRead, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     prelude::*,
-    symbols::line,
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
 use tui_input::backend::crossterm::EventHandler;

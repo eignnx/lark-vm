@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use clap::Parser;
+// use clap::Parser;
 
-use cpu::{Cpu, MemBlock, MemRw, Memory};
+// use cpu::{Cpu, MemBlock, MemRw, Memory};
 
 mod cli;
 mod cpu;
