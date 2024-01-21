@@ -1,8 +1,8 @@
-use std::{cell::RefCell, collections::BTreeSet, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, collections::BTreeSet, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 
 use yansi::Paint;
 
-use self::regs::RegisterFile;
+use self::{dex::DexErr, regs::RegisterFile};
 use crate::utils::s16;
 
 mod debugger;
@@ -19,6 +19,39 @@ pub const VTTY_COLS: usize = 80;
 pub const VTTY_ROWS: usize = 24;
 pub const VTTY_BYTES: usize = VTTY_COLS * VTTY_ROWS;
 
+pub enum ArgStyle {
+    Imm,
+    Reg,
+}
+
+pub enum LogMsg {
+    /// Once an instruction is decoded, it can be logged with this.
+    Instr {
+        size: u16,
+        name: String,
+        args: Vec<(Option<ArgStyle>, String)>,
+    },
+
+    /// Signals that a MMIO read has occurred.
+    MmioRead {
+        addr: u16,
+        value: String,
+    },
+
+    /// Signals that a MMIO write has occurred.
+    MmioWrite {
+        addr: u16,
+        value: String,
+    },
+
+    /// For printing a string to the command log.
+    DebugPuts {
+        addr: u16,
+        value: String,
+    },
+    Error(String),
+}
+
 pub struct Cpu {
     pub regs: RegisterFile,
 
@@ -34,24 +67,45 @@ pub struct Cpu {
 
     pub mem: Memory,
 
+    pub logger: Sender<LogMsg>,
+
     pub in_debug_mode: bool,
     pub breakpoints: BTreeSet<u16>,
     pub rom_src_path: Option<PathBuf>,
 }
 
 impl Cpu {
-    pub fn new(rom: MemBlock<ROM_SIZE>, vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>) -> Self {
+    pub fn new(
+        rom: MemBlock<ROM_SIZE>,
+        vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>,
+        logger: Sender<LogMsg>,
+    ) -> Self {
         Self {
             regs: RegisterFile::new(STACK_INIT),
-            pc: 0,
+            pc: Memory::ROM_START,
             ir: 0,
             hi: s16::default(),
             lo: s16::default(),
             mem: Memory::new(rom, vtty_buf),
+
+            logger,
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
             rom_src_path: None,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.regs.reset(STACK_INIT);
+        self.pc = Memory::ROM_START;
+        self.ir = 0;
+        self.hi = s16::default();
+        self.lo = s16::default();
+        self.mem.reset();
+    }
+
+    pub fn load_rom(&mut self, rom: MemBlock<ROM_SIZE>) {
+        self.mem.rom = rom;
     }
 
     pub fn with_start_addr(mut self, start_addr: u16) -> Self {
@@ -69,20 +123,29 @@ impl Cpu {
         self
     }
 
+    pub fn step(&mut self) -> Result<(), DexErr> {
+        self.fetch();
+        self.decode_and_execute()?;
+        Ok(())
+    }
+
     pub fn run(&mut self) {
         loop {
             if self.breakpoints.contains(&self.pc) {
                 self.in_debug_mode = true;
             }
 
-            self.fetch();
-            match self.decode_and_execute() {
+            match self.step() {
                 Ok(()) => {}
                 Err(e) => {
-                    println!("Error: {:?}", e);
+                    self.log(LogMsg::Error(format!("{:?}", e)));
                 }
             }
         }
+    }
+
+    pub fn log(&self, msg: LogMsg) {
+        self.logger.send(msg).unwrap();
     }
 
     fn mem_read_s16(&self, addr_base: u16, addr_offset: i16) -> s16 {
@@ -177,6 +240,13 @@ impl Memory {
             Self::KERNEL_START.. => (&mut self.kernel, addr - Self::KERNEL_START),
         }
     }
+
+    fn reset(&mut self) {
+        self.rom = MemBlock::new_zeroed();
+        self.user = MemBlock::new_zeroed();
+        self.kernel = MemBlock::new_zeroed();
+        // Leave MMIO alone.
+    }
 }
 
 impl MemRw for Memory {
@@ -230,13 +300,11 @@ impl MemRw for Mmio {
 
     fn write_u8(&mut self, addr: u16, value: u8) {
         match addr {
-            1 => println!(
-                "MMIO[0x{addr:04X}] <- {v}_u8 = 0x{h:02X} = {c:?}",
-                addr = addr.cyan(),
-                v = value.green(),
-                h = value.green(),
-                c = value as char,
-            ),
+            1 => {} // TODO
+            // 1 => self.log(LogMsg::MmioWrite {
+            //     addr,
+            //     value: value.to_string(),
+            // }),
             VTTY_START..=VTTY_END => {
                 let addr = addr - VTTY_START;
                 let mut vtty_buf = self.vtty_buf.borrow_mut();
@@ -250,15 +318,9 @@ impl MemRw for Mmio {
         unimplemented!("unimplemented MMIO s16 read from address {}", addr);
     }
 
-    fn write_s16(&mut self, addr: u16, value: s16) {
+    fn write_s16(&mut self, addr: u16, _value: s16) {
         match addr {
-            1 => println!(
-                "MMIO[0x{addr:04X}] <- {v}_u16 = 0x{h:04X} = {c:?}",
-                addr = addr.cyan(),
-                v = value.as_u16().green(),
-                h = value.as_u16().green(),
-                c = char::from_u32(*value.as_u16() as u32)
-            ),
+            1 => {} // TODO
             _ => unimplemented!("unimplemented MMIO s16 write to address {}", addr),
         }
     }

@@ -26,28 +26,24 @@ impl Cpu {
         let opcode = ir[..6].load::<u8>();
         let ir = &ir[6..];
 
-        if cfg!(debug_assertions) {
-            print!("pc={}\t", self.pc);
-        }
-
         match opcode {
             opcodes::EXN => {
                 let (size, imm10) = decode::imm10(ir);
-                log_instr!([size] exn imm10);
+                self.log(log_instr!([size] exn imm10));
                 self.breakpoint();
                 self.handle_exn(imm10);
                 self.pc += size;
             }
 
             opcodes::HALT => {
-                log_instr!([1] halt);
+                self.log(log_instr!([1] halt));
                 self.breakpoint();
                 std::process::exit(0);
             }
 
             opcodes::LI => {
                 let (size, rd, simm16) = decode::reg_simm(ir)?;
-                log_instr!([size] li rd, simm16);
+                self.log(log_instr!([size] li rd, simm16));
                 self.breakpoint();
                 self.regs.set(rd, simm16);
                 self.pc += size;
@@ -55,7 +51,7 @@ impl Cpu {
 
             opcodes::ADD => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] add rd, rs, rt);
+                self.log(log_instr!([size] add rd, rs, rt));
                 self.breakpoint();
                 let sum: i16 = self.regs.get::<i16>(rs) + self.regs.get::<i16>(rt);
                 self.regs.set(rd, sum);
@@ -64,7 +60,7 @@ impl Cpu {
 
             opcodes::ADDU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] addu rd, rs, rt);
+                self.log(log_instr!([size] addu rd, rs, rt));
                 self.breakpoint();
                 let sum: u16 = self.regs.get::<u16>(rs) + self.regs.get::<u16>(rt);
                 self.regs.set(rd, sum);
@@ -73,7 +69,7 @@ impl Cpu {
 
             opcodes::ADDI => {
                 let (size, rd, rs, simm) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] addi rd, rs, simm);
+                self.log(log_instr!([size] addi rd, rs, simm));
                 self.breakpoint();
                 let sum: i16 = self.regs.get::<i16>(rs) + simm;
                 self.regs.set(rd, sum);
@@ -82,7 +78,7 @@ impl Cpu {
 
             opcodes::SUB => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] sub rd, rs, rt);
+                self.log(log_instr!([size] sub rd, rs, rt));
                 self.breakpoint();
                 let diff: i16 = self.regs.get::<i16>(rs) - self.regs.get::<i16>(rt);
                 self.regs.set(rd, diff);
@@ -91,7 +87,7 @@ impl Cpu {
 
             opcodes::SUBU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] subu rd, rs, rt);
+                self.log(log_instr!([size] subu rd, rs, rt));
                 self.breakpoint();
                 let diff: u16 = self.regs.get::<u16>(rs) - self.regs.get::<u16>(rt);
                 self.regs.set(rd, diff);
@@ -100,7 +96,7 @@ impl Cpu {
 
             opcodes::SUBI => {
                 let (size, rd, rs, simm) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] subi rd, rs, simm);
+                self.log(log_instr!([size] subi rd, rs, simm));
                 self.breakpoint();
                 let diff: i16 = self.regs.get::<i16>(rs) - simm;
                 self.regs.set(rd, diff);
@@ -109,7 +105,7 @@ impl Cpu {
 
             opcodes::MV => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] mv rd, rs);
+                self.log(log_instr!([size] mv rd, rs));
                 self.breakpoint();
                 let value: s16 = self.regs.get(rs);
                 self.regs.set(rd, value);
@@ -118,14 +114,14 @@ impl Cpu {
 
             opcodes::JR => {
                 let (size, rs) = decode::reg(ir)?;
-                log_instr!([size] jr rs);
+                self.log(log_instr!([size] jr rs));
                 self.breakpoint();
                 self.pc = self.regs.get(rs);
             }
 
             opcodes::J => {
                 let (size, offset) = decode::simm16(ir);
-                log_instr!([size] j offset);
+                self.log(log_instr!([size] j offset));
                 self.breakpoint();
                 self.pc = (self.pc as i32)
                     .checked_add(offset as i32)
@@ -136,7 +132,7 @@ impl Cpu {
             // Example: jal $rd, ADDR
             opcodes::JAL => {
                 let (size, rd, offset) = decode::reg_simm(ir)?;
-                log_instr!([size] jal rd, offset);
+                self.log(log_instr!([size] jal rd, offset));
                 self.breakpoint();
                 self.regs.set(rd, self.pc + size);
                 self.pc = (self.pc as i32)
@@ -150,7 +146,7 @@ impl Cpu {
             //          save pc    jump address
             opcodes::JRAL => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] jral rd, rs);
+                self.log(log_instr!([size] jral rd, rs));
                 self.breakpoint();
                 self.regs.set(rd, self.pc + size);
                 self.pc = self.regs.get(rs);
@@ -158,7 +154,7 @@ impl Cpu {
 
             opcodes::TLT => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] tlt rd, rs, rt);
+                self.log(log_instr!([size] tlt rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<i16>(rs) < self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -167,7 +163,7 @@ impl Cpu {
 
             opcodes::TLTU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] tltu rd, rs, rt);
+                self.log(log_instr!([size] tltu rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<u16>(rs) < self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -176,7 +172,7 @@ impl Cpu {
 
             opcodes::TGE => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] tge rd, rs, rt);
+                self.log(log_instr!([size] tge rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<i16>(rs) >= self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -185,7 +181,7 @@ impl Cpu {
 
             opcodes::TGEU => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] tgeu rd, rs, rt);
+                self.log(log_instr!([size] tgeu rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<u16>(rs) >= self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -194,7 +190,7 @@ impl Cpu {
 
             opcodes::TEQ => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] teq rd, rs, rt);
+                self.log(log_instr!([size] teq rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<i16>(rs) == self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -203,7 +199,7 @@ impl Cpu {
 
             opcodes::TNE => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] tne rd, rs, rt);
+                self.log(log_instr!([size] tne rd, rs, rt));
                 self.breakpoint();
                 let value = self.regs.get::<u16>(rs) != self.regs.get(rt);
                 self.regs.set(rd, value as u16);
@@ -212,7 +208,7 @@ impl Cpu {
 
             opcodes::TEZ => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] tez rd, rs);
+                self.log(log_instr!([size] tez rd, rs));
                 self.breakpoint();
                 let value = self.regs.get::<u16>(rs) == 0u16;
                 self.regs.set(rd, value as u16);
@@ -221,7 +217,7 @@ impl Cpu {
 
             opcodes::TNZ => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] tnz rd, rs);
+                self.log(log_instr!([size] tnz rd, rs));
                 self.breakpoint();
                 let value = self.regs.get::<u16>(rs) != 0u16;
                 self.regs.set(rd, value as u16);
@@ -231,7 +227,7 @@ impl Cpu {
             // Branch if false.
             opcodes::BF => {
                 let (size, rs, addr_offset) = decode::reg_simm(ir)?;
-                log_instr!([size] bf rs, addr_offset);
+                self.log(log_instr!([size] bf rs, addr_offset));
                 self.breakpoint();
                 if !self.regs.get::<bool>(rs) {
                     self.pc = (self.pc as i32 + addr_offset as i32) as u16;
@@ -243,7 +239,7 @@ impl Cpu {
             // Branch if true.
             opcodes::BT => {
                 let (size, rs, addr_offset) = decode::reg_simm(ir)?;
-                log_instr!([size] bt rs, addr_offset);
+                self.log(log_instr!([size] bt rs, addr_offset));
                 self.breakpoint();
                 if self.regs.get(rs) {
                     self.pc = (self.pc as i32 + addr_offset as i32) as u16;
@@ -254,7 +250,7 @@ impl Cpu {
 
             opcodes::NOT => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] not rd, rs);
+                self.log(log_instr!([size] not rd, rs));
                 self.breakpoint();
                 let value = !self.regs.get::<bool>(rs);
                 self.regs.set(rd, value as u16);
@@ -262,14 +258,14 @@ impl Cpu {
             }
 
             opcodes::NOP => {
-                log_instr!([1] nop);
+                self.log(log_instr!([1] nop));
                 self.breakpoint();
                 self.pc += 1;
             }
 
             opcodes::MUL => {
                 let (size, rs, rt) = decode::reg_reg(ir)?;
-                log_instr!([size] mul rs, rt);
+                self.log(log_instr!([size] mul rs, rt));
                 self.breakpoint();
 
                 let product = self.regs.get::<i16>(rs) as i32 * self.regs.get::<i16>(rt) as i32;
@@ -284,7 +280,7 @@ impl Cpu {
 
             opcodes::MULU => {
                 let (size, rs, rt) = decode::reg_reg(ir)?;
-                log_instr!([size] mulu rs, rt);
+                self.log(log_instr!([size] mulu rs, rt));
                 self.breakpoint();
 
                 let product: u32 =
@@ -299,7 +295,7 @@ impl Cpu {
 
             opcodes::MVLO => {
                 let (size, rd) = decode::reg(ir)?;
-                log_instr!([size] mvlo rd);
+                self.log(log_instr!([size] mvlo rd));
                 self.breakpoint();
                 self.regs.set(rd, self.lo);
                 self.pc += size;
@@ -307,7 +303,7 @@ impl Cpu {
 
             opcodes::MVHI => {
                 let (size, rd) = decode::reg(ir)?;
-                log_instr!([size] mvhi rd);
+                self.log(log_instr!([size] mvhi rd));
                 self.breakpoint();
                 self.regs.set(rd, self.hi);
                 self.pc += size;
@@ -315,7 +311,7 @@ impl Cpu {
 
             opcodes::LW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] lw rd, rs, addr_offset);
+                self.log(log_instr!([size] lw rd, rs, addr_offset));
                 self.breakpoint();
                 let addr_base = self.regs.get(rs);
                 let value = self.mem_read_s16(addr_base, addr_offset);
@@ -325,7 +321,7 @@ impl Cpu {
 
             opcodes::LBU => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] lbu rd, rs, addr_offset);
+                self.log(log_instr!([size] lbu rd, rs, addr_offset));
                 self.breakpoint();
                 let addr_base = self.regs.get(rs);
                 let value = self.mem_read_u8(addr_base, addr_offset);
@@ -342,7 +338,7 @@ impl Cpu {
             //              value reg (rs)
             opcodes::SW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] sw rd, rs, addr_offset);
+                self.log(log_instr!([size] sw rd, rs, addr_offset));
                 self.breakpoint();
                 let addr_base = self.regs.get(rd);
                 let value = self.regs.get(rs);
@@ -352,7 +348,7 @@ impl Cpu {
 
             opcodes::SB => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                log_instr!([size] sb rd, rs, addr_offset);
+                self.log(log_instr!([size] sb rd, rs, addr_offset));
                 self.breakpoint();
                 let addr_base = self.regs.get(rd);
                 let value = (self.regs.get::<u16>(rs) & 0x00FF) as u8;
@@ -362,7 +358,7 @@ impl Cpu {
 
             opcodes::SEB => {
                 let (size, rd, rs) = decode::reg_reg(ir)?;
-                log_instr!([size] seb rd, rs);
+                self.log(log_instr!([size] seb rd, rs));
                 self.breakpoint();
                 let value = (self.regs.get::<u16>(rs) & 0x00FF) as u8;
                 let value = unsafe { std::mem::transmute::<u8, i8>(value) };
@@ -373,7 +369,7 @@ impl Cpu {
 
             opcodes::SHL => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] shl rd, rs, rt);
+                self.log(log_instr!([size] shl rd, rs, rt));
                 self.breakpoint();
                 let value: u16 = self.regs.get::<u16>(rs) << self.regs.get::<u16>(rt);
                 self.regs.set(rd, value);
@@ -382,7 +378,7 @@ impl Cpu {
 
             opcodes::SHR => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] shr rd, rs, rt);
+                self.log(log_instr!([size] shr rd, rs, rt));
                 self.breakpoint();
                 let value: u16 = self.regs.get::<u16>(rs) >> self.regs.get::<u16>(rt);
                 self.regs.set(rd, value);
@@ -392,7 +388,7 @@ impl Cpu {
             // Shift right arithmetic.
             opcodes::SHRA => {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
-                log_instr!([size] shra rd, rs, rt);
+                self.log(log_instr!([size] shra rd, rs, rt));
                 self.breakpoint();
                 // Will perform sign-extension after shifting.
                 let value: i16 = self.regs.get::<i16>(rs) >> self.regs.get::<u16>(rt);

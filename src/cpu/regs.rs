@@ -111,8 +111,13 @@ impl RegisterFile {
         let mut regs = Self {
             indexed: [s16::default(); 15],
         };
-        regs.set(Reg::Sp, start_sp);
+        regs.reset(start_sp);
         regs
+    }
+
+    pub fn reset(&mut self, start_sp: u16) {
+        self.indexed = [s16::default(); 15];
+        self.set(Reg::Sp, start_sp);
     }
 
     /// Returns `None` for the zero register.
