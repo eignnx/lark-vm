@@ -4,7 +4,7 @@ use bitvec::prelude::*;
 
 use crate::{cpu::decode, log_instr, utils::s16};
 
-use super::{opcodes, Cpu};
+use super::{opcodes, Cpu, Signal};
 
 #[derive(Debug)]
 pub enum DexErr {
@@ -38,7 +38,7 @@ impl Cpu {
             opcodes::HALT => {
                 self.log(log_instr!([1] halt));
                 self.breakpoint();
-                std::process::exit(0);
+                self.signal(Signal::Halt);
             }
 
             opcodes::LI => {
@@ -396,7 +396,7 @@ impl Cpu {
                 self.pc += size;
             }
 
-            other => unimplemented!("unimplemented opcode `0x{:X?}` (pc={})", other, self.pc),
+            other => return Err(DexErr::InvalidOpcode(other)),
         }
 
         Ok(())

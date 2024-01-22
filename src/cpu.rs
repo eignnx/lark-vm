@@ -1,7 +1,5 @@
 use std::{cell::RefCell, collections::BTreeSet, path::PathBuf, rc::Rc, sync::mpsc::Sender};
 
-use yansi::Paint;
-
 use self::{dex::DexErr, regs::RegisterFile};
 use crate::utils::s16;
 
@@ -52,6 +50,16 @@ pub enum LogMsg {
     Error(String),
 }
 
+pub enum Signal {
+    /// Signals that the CPU should halt.
+    Halt,
+    /// Requests a log message be printed.
+    Log(LogMsg),
+    /// Pauses execution of the VM allowing the user to interact with the
+    /// debugger.
+    Breakpoint,
+}
+
 pub struct Cpu {
     pub regs: RegisterFile,
 
@@ -67,7 +75,7 @@ pub struct Cpu {
 
     pub mem: Memory,
 
-    pub logger: Sender<LogMsg>,
+    pub supervisor: Sender<Signal>,
 
     pub in_debug_mode: bool,
     pub breakpoints: BTreeSet<u16>,
@@ -78,7 +86,7 @@ impl Cpu {
     pub fn new(
         rom: MemBlock<ROM_SIZE>,
         vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>,
-        logger: Sender<LogMsg>,
+        logger: Sender<Signal>,
     ) -> Self {
         Self {
             regs: RegisterFile::new(STACK_INIT),
@@ -88,7 +96,7 @@ impl Cpu {
             lo: s16::default(),
             mem: Memory::new(rom, vtty_buf),
 
-            logger,
+            supervisor: logger,
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
             rom_src_path: None,
@@ -144,8 +152,12 @@ impl Cpu {
         }
     }
 
+    pub fn signal(&self, sig: Signal) {
+        self.supervisor.send(sig).unwrap();
+    }
+
     pub fn log(&self, msg: LogMsg) {
-        self.logger.send(msg).unwrap();
+        self.signal(Signal::Log(msg));
     }
 
     fn mem_read_s16(&self, addr_base: u16, addr_offset: i16) -> s16 {

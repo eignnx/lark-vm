@@ -108,7 +108,6 @@ pub fn reg_reg_reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg, Reg)> {
         .load_le::<u8>()
         .try_into()
         .map_err(RegDecodeErr::Rt)?;
-    println!("reg_reg_reg: rd={}, rs={}, rt={}", rd, rs, rt);
     Ok((instr_size(3 * REG_BITS), rd, rs, rt))
 }
 

@@ -1,9 +1,7 @@
 #![allow(dead_code)]
 
-use yansi::Paint;
-
 use super::regs::Reg;
-use super::Cpu;
+use super::{Cpu, LogMsg, Signal};
 
 mod codes {
     pub const ILLEGAL_INSTR: u16 = 0x0000;
@@ -30,14 +28,16 @@ impl Cpu {
                         .unwrap_or_else(|| "<unknown>".into()),
                     lineno
                 );
-                eprintln!("Breakpoint Exception: {location}");
-                eprintln!("\t(at pc={})", self.pc);
-                std::process::exit(0);
+                self.signal(Signal::Breakpoint)
+                // eprintln!("Breakpoint Exception: {location}");
+                // eprintln!("\t(at pc={})", self.pc);
+                // std::process::exit(0);
+                // TODO
             }
 
             codes::DIV_BY_ZERO => {
                 eprintln!("Division by zero at pc={}", self.pc);
-                std::process::exit(1);
+                todo!("handle division by zero");
             }
 
             codes::DEBUG_PUTS => {
@@ -47,7 +47,11 @@ impl Cpu {
                     .map(|i| self.mem_read_u8(s_ptr, i))
                     .map(char::from)
                     .collect::<String>();
-                println!("DEBUG_PUTS: {}", s.yellow().bold().italic());
+
+                self.log(LogMsg::DebugPuts {
+                    addr: s_ptr,
+                    value: s,
+                })
             }
 
             other => unimplemented!("unimplemented exception code `0x{:X?}`", other),
