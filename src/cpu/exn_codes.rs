@@ -13,10 +13,7 @@ mod codes {
 impl Cpu {
     pub fn handle_exn(&self, code: u16) {
         match code {
-            codes::ILLEGAL_INSTR => {
-                eprintln!("Illegal instruction at pc={}: 0x{:X?}", self.pc, self.ir);
-                std::process::exit(1);
-            }
+            codes::ILLEGAL_INSTR => self.signal(Signal::IllegalInstr),
 
             codes::DEBUG_BREAKPOINT => {
                 let lineno: u16 = self.regs.get(Reg::A0);

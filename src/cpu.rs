@@ -58,6 +58,8 @@ pub enum Signal {
     /// Pauses execution of the VM allowing the user to interact with the
     /// debugger.
     Breakpoint,
+    /// Signals that an illegal instruction has been executed.
+    IllegalInstr,
 }
 
 pub struct Cpu {
