@@ -147,3 +147,17 @@ impl RegisterFile {
             .map(|(i, &v)| (Reg::try_from(i as u8 + 1).unwrap(), v))
     }
 }
+
+impl fmt::Display for RegisterFile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (idx, (reg_name, r)) in self.iter().enumerate() {
+            let signed = r.as_i16();
+            let unsigned = r.as_u16();
+            writeln!(
+                f,
+                "${reg_name}: 0x{unsigned:04x}, 0d{unsigned:05}, {signed:+}"
+            )?;
+        }
+        Ok(())
+    }
+}
