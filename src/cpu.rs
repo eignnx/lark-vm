@@ -1,12 +1,19 @@
-use std::{cell::RefCell, collections::BTreeSet, path::PathBuf, rc::Rc, sync::mpsc::Sender};
+use std::{
+    cell::RefCell,
+    collections::BTreeSet,
+    path::PathBuf,
+    rc::Rc,
+    sync::mpsc::{Receiver, Sender},
+};
 
-use self::{dex::DexErr, regs::RegisterFile};
+use self::{dex::DexErr, interrupts::Interrupt, regs::RegisterFile};
 use crate::utils::s16;
 
 mod debugger;
 mod decode;
 mod dex;
 mod exn_codes;
+pub mod interrupts;
 mod opcodes;
 mod regs;
 
@@ -78,6 +85,7 @@ pub struct Cpu {
     pub mem: Memory,
 
     pub supervisor: Sender<Signal>,
+    pub pending_interrupts: Receiver<Interrupt>,
 
     pub in_debug_mode: bool,
     pub breakpoints: BTreeSet<u16>,
@@ -89,6 +97,7 @@ impl Cpu {
         rom: MemBlock<ROM_SIZE>,
         vtty_buf: Rc<RefCell<MemBlock<VTTY_BYTES>>>,
         logger: Sender<Signal>,
+        interrupt_channel: Receiver<Interrupt>,
     ) -> Self {
         Self {
             regs: RegisterFile::new(STACK_INIT),
@@ -99,6 +108,8 @@ impl Cpu {
             mem: Memory::new(rom, vtty_buf),
 
             supervisor: logger,
+            pending_interrupts: interrupt_channel,
+
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
             rom_src_path: None,

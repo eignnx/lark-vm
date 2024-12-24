@@ -4,7 +4,7 @@ use clap::Parser;
 
 use lark_vm::{
     cli,
-    cpu::{self, Cpu, LogMsg, MemBlock, MemRw, Memory, Signal},
+    cpu::{self, interrupts::Interrupt, Cpu, LogMsg, MemBlock, MemRw, Memory, Signal},
 };
 
 fn main() {
@@ -24,9 +24,10 @@ fn main() {
     };
 
     let vtty = Rc::new(RefCell::new(MemBlock::new_zeroed()));
-    let (tx, rx) = mpsc::channel();
+    let (logger_tx, logger_rx) = mpsc::channel();
+    let (interrupt_tx, interrupt_rx) = mpsc::channel();
 
-    let mut cpu = Cpu::new(rom, vtty.clone(), tx)
+    let mut cpu = Cpu::new(rom, vtty.clone(), logger_tx, interrupt_rx)
         .with_start_addr(Memory::ROM_START)
         .in_debug_mode(cli.debug)
         .with_rom_src_path(cli.rom_src_path());
@@ -43,7 +44,7 @@ fn main() {
     }
 
     std::thread::spawn(move || {
-        for signal in rx {
+        for signal in logger_rx {
             match signal {
                 Signal::Halt => {
                     println!("Exiting...");
@@ -79,8 +80,7 @@ fn main() {
                     cpu.in_debug_mode = true;
                 }
                 Signal::IllegalInstr => {
-                    println!("!!! Illegal Instruction, exiting...");
-                    std::process::exit(1);
+                    interrupt_tx.send(Interrupt::ILL_INSTR);
                 }
             }
         }

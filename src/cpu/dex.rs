@@ -20,6 +20,12 @@ impl From<decode::RegDecodeErr> for DexErr {
 
 impl Cpu {
     pub fn decode_and_execute(&mut self) -> Result<(), DexErr> {
+        // First check for interrupts.
+        let pending = self.pending_interrupts.try_iter().collect::<Vec<_>>();
+        for interrupt in pending {
+            self.send_interrupt(interrupt);
+        }
+
         let ir = self.ir.view_bits::<Msb0>();
 
         // Opcode is most significant 6 bits.
