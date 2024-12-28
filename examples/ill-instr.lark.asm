@@ -1,19 +1,19 @@
-#include "../lark.customasm"
+#include "../../lark.customasm"
 #bank rom
 
-j	_start
+_start:
+	jal	$ra, boot
+	j	main
 
 boot:
 	; Setup ILL_INSTR handler:
 	li	$t0, -2 ; Slot in interrupt vector
-	li	$t1, handle__ILL_INSTR`15 ; Function-pointer of handler
+	li	$t1, handle__ILL_INSTR ; Function-pointer of handler
 	sw	0($t0), $t1
 	jr	$ra
 
-; <FnDef name=_start args=[]>
-_start:
-	jal	$ra, boot
-
+; <FnDef name=main args=[]>
+main:
 ; <Section id="print-test-exn">
 	li	$a0, strlit__QQTest_exnQQ__0
 	li	$a1, 19
