@@ -3,11 +3,12 @@ use crate::cpu::{Cpu, MemRw};
 /// These are addresses in memory where function *pointers* are stored.
 #[derive(Clone, Copy)]
 #[repr(u16)]
+#[expect(non_camel_case_types)]
 pub enum Interrupt {
-    ILL_INSTR = 0xFFFF, // Illegal Instruction
-    DIV_ZERO = 0xFFFE,  // Division by Zero
-    KEY_EVENT = 0xFFFD, // Keyboard Event
-    TIMER_EXP = 0xFFFC, // Timer Expiration
+    ILL_INSTR = 0xFFFE, // Illegal Instruction
+    DIV_ZERO = 0xFFFC,  // Division by Zero
+    KEY_EVENT = 0xFFFA, // Keyboard Event
+    TIMER_EXP = 0xFFF8, // Timer Expiration
 }
 
 impl Cpu {

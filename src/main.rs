@@ -43,48 +43,52 @@ fn main() {
         println!();
     }
 
-    std::thread::spawn(move || {
-        for signal in logger_rx {
+    loop {
+        if let Err(e) = cpu.step() {
+            cpu.log(LogMsg::Error(format!("{:?}", e)));
+        }
+
+        for signal in logger_rx.try_iter() {
             match signal {
                 Signal::Halt => {
-                    println!("Exiting...");
+                    eprintln!("Exiting...");
                     std::process::exit(0);
                 }
                 Signal::Log(msg) => match msg {
                     LogMsg::Error(e) => {
-                        println!("!!! Error: {e}");
+                        eprintln!("!!! Error: {e}");
                     }
                     LogMsg::DebugPuts { addr, value } => {
-                        println!(">>> DebugPuts: {addr:x} '{value}'");
+                        eprintln!(">>> DebugPuts: {addr:x} '{value}'");
                     }
                     LogMsg::MmioRead { .. } => {
-                        println!(">>> MMIO READ");
+                        eprintln!(">>> MMIO READ");
                     }
                     LogMsg::MmioWrite { .. } => {
-                        println!(">>> MMIO WRITE");
+                        eprintln!(">>> MMIO WRITE");
                     }
                     LogMsg::Instr { name, args, .. } => {
-                        print!("{name}");
+                        eprint!("{name}");
                         for (i, (_style, arg)) in args.iter().enumerate() {
                             if i != 0 {
-                                print!(", ");
+                                eprint!(", ");
                             } else {
-                                print!("\t");
+                                eprint!("\t");
                             }
-                            print!("{arg}");
+                            eprint!("{arg}");
                         }
-                        println!();
+                        eprintln!();
                     }
                 },
                 Signal::Breakpoint => {
                     cpu.in_debug_mode = true;
                 }
                 Signal::IllegalInstr => {
-                    interrupt_tx.send(Interrupt::ILL_INSTR);
+                    interrupt_tx
+                        .send(Interrupt::ILL_INSTR)
+                        .expect("interrupt send to closed channel!");
                 }
             }
         }
-    });
-
-    cpu.run();
+    }
 }

@@ -145,22 +145,26 @@ impl Cpu {
     }
 
     pub fn step(&mut self) -> Result<(), DexErr> {
+        // First check for interrupts.
+        let pending = self.pending_interrupts.try_iter().collect::<Vec<_>>();
+        for interrupt in pending {
+            self.send_interrupt(interrupt);
+        }
+
         self.fetch();
+
+        if self.breakpoints.contains(&self.pc) {
+            self.in_debug_mode = true;
+        }
+
         self.decode_and_execute()?;
         Ok(())
     }
 
     pub fn run(&mut self) {
         loop {
-            if self.breakpoints.contains(&self.pc) {
-                self.in_debug_mode = true;
-            }
-
-            match self.step() {
-                Ok(()) => {}
-                Err(e) => {
-                    self.log(LogMsg::Error(format!("{:?}", e)));
-                }
+            if let Err(e) = self.step() {
+                self.log(LogMsg::Error(format!("{:?}", e)));
             }
         }
     }
@@ -380,14 +384,17 @@ impl<const N: usize> MemBlock<N> {
 }
 
 impl<const N: usize> MemRw for MemBlock<N> {
+    #[track_caller]
     fn read_u8(&self, addr: u16) -> u8 {
         self.mem[addr as usize]
     }
 
+    #[track_caller]
     fn write_u8(&mut self, addr: u16, value: u8) {
         self.mem[addr as usize] = value;
     }
 
+    #[track_caller]
     #[allow(clippy::identity_op)]
     fn read_s16(&self, addr: u16) -> s16 {
         let lo = self.mem[addr as usize + 1] as u16;
@@ -395,6 +402,7 @@ impl<const N: usize> MemRw for MemBlock<N> {
         ((hi << 8) | (lo << 0)).into()
     }
 
+    #[track_caller]
     #[allow(clippy::identity_op)]
     fn write_s16(&mut self, addr: u16, value: s16) {
         let value: u16 = value.into();

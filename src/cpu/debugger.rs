@@ -19,13 +19,35 @@ impl Cpu {
         let mut line = String::new();
 
         loop {
-            print!("debug> ");
+            eprint!("debug> ");
 
             io::stdout().flush().unwrap();
             stdin.read_line(&mut line).unwrap();
 
             if line.trim().is_empty() {
                 break;
+            }
+
+            if matches!(line.trim(), "help" | "h" | "?" | "--help" | "-h") {
+                eprintln!();
+                eprintln!("HELP");
+                eprintln!("--------------------------------------------------------------");
+                eprintln!("registers | r           Print registers");
+                eprintln!("<LVAL> = <RVAL>         Store a value somewhere");
+                eprintln!("<RVAL>                  Print a value");
+                eprintln!("stack | s               Print the stack to a depth of 4 words");
+                eprintln!("stack <UINT>            Print the stack to a specified depth");
+                eprintln!("                        (in words)");
+                eprintln!("breakpoints | b         Print a list of all current breakpoints");
+                eprintln!("+b <RVAL>               Add a breakpoint at the given");
+                eprintln!("+breakpoint <RVAL>      instruction address");
+                eprintln!("-b #<UINT>              Remove the n-th breakpoint");
+                eprintln!("-breakpoint #<UINT>");
+                eprintln!("-b <RVAL>               Remove breakpoint at given address");
+                eprintln!("-breakpoint <RVAL>");
+                eprintln!("continue | c            Continue execution, ignoring breakpoints");
+                eprintln!("--------------------------------------------------------------");
+                continue;
             }
 
             let cmd = DbgCmd::parse(&mut &line[..]).unwrap_or_else(|err| {
@@ -45,36 +67,41 @@ impl Cpu {
 
     fn eval_dbg_cmd(&mut self, cmd: &DbgCmd) {
         match cmd {
-            DbgCmd::Eval(DbgVal::Spr(Spr::Ir)) => println!("-> {:0b}", self.ir),
-            DbgCmd::Eval(val) => println!("-> {}", self.eval_dbg_val_rvalue(val)),
+            DbgCmd::Eval(val) => eprintln!(
+                "-> {val}, 0x{val:0x}, 0b{val:0b}",
+                val = self.eval_dbg_val_rvalue(val)
+            ),
             DbgCmd::Set(lhs, rhs) => {
                 let rhs = self.eval_dbg_val_rvalue(rhs);
                 let old = self.set_lvalue(lhs, rhs);
-                println!("{old} -> {rhs}",)
+                eprintln!("{old} -> {rhs}",)
             }
             DbgCmd::PrintStack { depth } => self.print_stack(*depth),
             DbgCmd::ListBreakpoints => {
-                println!("breakpoints:");
+                eprintln!("breakpoints:");
                 for (i, bp) in self.breakpoints.iter().enumerate() {
-                    println!("\t #{}: 0x{:04X} = {}", i + 1, bp, bp);
+                    eprintln!("\t #{}: 0x{:04X} = {}", i + 1, bp, bp);
                 }
                 if self.breakpoints.is_empty() {
-                    println!("\t<no breakpoints set>");
+                    eprintln!("\t<no breakpoints set>");
                 }
             }
             DbgCmd::AddBreakpoint(val) => {
                 let address = self.eval_dbg_val_rvalue(val);
                 self.breakpoints.insert(address);
-                println!("added breakpoint at 0x{:04X} = {}", address, address);
+                eprintln!("added breakpoint at 0x{:04X} = {}", address, address);
             }
             DbgCmd::RemoveBreakpoint(val) => {
                 let Some(index) = self.eval_dbg_val_rvalue(val).checked_sub(1) else {
-                    println!("Invalid breakpoint ordinal. Enter a value between 1 and {}.", self.breakpoints.len());
+                    eprintln!(
+                        "Invalid breakpoint ordinal. Enter a value between 1 and {}.",
+                        self.breakpoints.len()
+                    );
                     return;
                 };
                 let address = *self.breakpoints.iter().nth(index as usize).unwrap();
                 self.breakpoints.remove(&address);
-                println!(
+                eprintln!(
                     "removed breakpoint #{}: 0x{:04X} = {}",
                     index + 1,
                     address,
@@ -83,18 +110,18 @@ impl Cpu {
             }
             DbgCmd::Continue => {
                 self.in_debug_mode = false;
-                println!("continuing execution...");
+                eprintln!("continuing execution...");
             }
             DbgCmd::PrintRegs => {
-                println!("general-purpose registers:");
+                eprintln!("general-purpose registers:");
                 for (regname, regval) in self.regs.iter() {
-                    println!("\t${regname} = 0x{v:04X} = {v}", v = regval.as_u16());
+                    eprintln!("\t${regname} = 0x{v:04X} = {v}", v = regval.as_u16());
                 }
-                println!("special-purpose registers:");
-                println!("\t${} = 0x{v:04X} = {v}", Spr::Lo, v = *self.lo.as_u16());
-                println!("\t${} = 0x{v:04X} = {v}", Spr::Hi, v = *self.hi.as_u16());
-                println!("\t${} = 0x{v:04X} = {v}", Spr::Pc, v = self.pc,);
-                println!("\t${} = 0x{v:08X} = {v} = 0b{v:032b}", Spr::Ir, v = self.ir);
+                eprintln!("special-purpose registers:");
+                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Lo, v = *self.lo.as_u16());
+                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Hi, v = *self.hi.as_u16());
+                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Pc, v = self.pc,);
+                eprintln!("\t${} = 0x{v:08X} = {v} = 0b{v:032b}", Spr::Ir, v = self.ir);
             }
         }
     }
@@ -158,7 +185,7 @@ impl Cpu {
         let mut addr = sp;
         for i in 0..depth {
             let value = *self.mem_read_s16(addr, 0).as_u16();
-            println!("[$sp+{:02}] = 0x{value:04X} = {value:06}", 2 * i);
+            eprintln!("[$sp+{:02}] = 0x{value:04X} = {value:06}", 2 * i);
             addr += 2;
         }
     }
@@ -183,21 +210,6 @@ impl DbgCmd {
         use winnow::Parser;
 
         alt((
-            // Try parsing a set command.
-            separated_pair(
-                DbgVal::parse,
-                (multispace0, "=", multispace0),
-                DbgVal::parse,
-            )
-            .map(|(lhs, rhs)| Self::Set(lhs, rhs)),
-            // Try parsing an eval command.
-            DbgVal::parse.map(Self::Eval),
-            // Try parsing a print stack command.
-            preceded(("stack", multispace0), opt(dec_uint)).map(|val: Option<u16>| {
-                Self::PrintStack {
-                    depth: val.unwrap_or(4),
-                }
-            }),
             // Try parsing an add breakpoint command.
             preceded(
                 (alt(("+b", "b", "breakpoint", "+breakpoint")), multispace1),
@@ -211,7 +223,22 @@ impl DbgCmd {
             // Try parsing a list breakpoints command.
             alt(("b", "breakpoints")).map(|_| Self::ListBreakpoints),
             alt(("c", "continue")).map(|_| Self::Continue),
-            alt(("r", "regs")).map(|_| Self::PrintRegs),
+            alt(("r", "regs", "registers")).map(|_| Self::PrintRegs),
+            // Try parsing a print stack command.
+            preceded((alt(("s", "stack")), multispace0), opt(dec_uint)).map(|val: Option<u16>| {
+                Self::PrintStack {
+                    depth: val.unwrap_or(4),
+                }
+            }),
+            // Try parsing a set command.
+            separated_pair(
+                DbgVal::parse,
+                (multispace0, "=", multispace0),
+                DbgVal::parse,
+            )
+            .map(|(lhs, rhs)| Self::Set(lhs, rhs)),
+            // Try parsing an eval command.
+            DbgVal::parse.map(Self::Eval),
         ))
         .parse_next(s)
     }
