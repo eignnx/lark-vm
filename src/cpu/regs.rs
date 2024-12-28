@@ -150,7 +150,7 @@ impl RegisterFile {
 
 impl fmt::Display for RegisterFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (idx, (reg_name, r)) in self.iter().enumerate() {
+        for (reg_name, r) in self.iter() {
             let signed = r.as_i16();
             let unsigned = r.as_u16();
             writeln!(

@@ -86,6 +86,7 @@ pub struct Cpu {
 
     pub supervisor: Sender<Signal>,
     pub pending_interrupts: Receiver<Interrupt>,
+    pub interrupt_return_address: u16,
 
     pub in_debug_mode: bool,
     pub breakpoints: BTreeSet<u16>,
@@ -109,6 +110,7 @@ impl Cpu {
 
             supervisor: logger,
             pending_interrupts: interrupt_channel,
+            interrupt_return_address: 0x0000,
 
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
@@ -122,6 +124,8 @@ impl Cpu {
         self.ir = 0;
         self.hi = s16::default();
         self.lo = s16::default();
+        self.in_debug_mode = false;
+        self.interrupt_return_address = 0x0000;
         self.mem.reset();
     }
 

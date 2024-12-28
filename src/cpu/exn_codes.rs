@@ -17,7 +17,7 @@ impl Cpu {
 
             codes::DEBUG_BREAKPOINT => {
                 let lineno: u16 = self.regs.get(Reg::A0);
-                let location = format!(
+                let _location = format!(
                     "romfile: {}:{}",
                     self.rom_src_path
                         .as_ref()

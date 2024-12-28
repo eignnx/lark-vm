@@ -396,6 +396,12 @@ impl Cpu {
                 self.pc += size;
             }
 
+            opcodes::KRET => {
+                self.log(log_instr!([1] kret));
+                self.breakpoint();
+                self.pc = self.interrupt_return_address;
+            }
+
             other => return Err(DexErr::InvalidOpcode(other)),
         }
 
