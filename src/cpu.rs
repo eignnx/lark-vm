@@ -334,10 +334,6 @@ impl MemRw for Mmio {
     fn write_u8(&mut self, addr: u16, value: u8) {
         match addr {
             1 => {} // TODO
-            // 1 => self.log(LogMsg::MmioWrite {
-            //     addr,
-            //     value: value.to_string(),
-            // }),
             VTTY_START..=VTTY_END => {
                 let addr = addr - VTTY_START;
                 let mut vtty_buf = self.vtty_buf.borrow_mut();
@@ -351,9 +347,19 @@ impl MemRw for Mmio {
         unimplemented!("unimplemented MMIO s16 read from address {}", addr);
     }
 
-    fn write_s16(&mut self, addr: u16, _value: s16) {
+    #[allow(clippy::identity_op)]
+    fn write_s16(&mut self, addr: u16, value: s16) {
         match addr {
             1 => {} // TODO
+            VTTY_START..=VTTY_END => {
+                let addr = addr - VTTY_START;
+                let value = value.as_u16();
+                let value_lo = (value & 0x00FF) as u8;
+                let value_hi = (value >> 8) as u8;
+                let mut vtty_buf = self.vtty_buf.borrow_mut();
+                vtty_buf.write_u8(addr + 0, value_lo);
+                vtty_buf.write_u8(addr + 1, value_hi);
+            }
             _ => unimplemented!("unimplemented MMIO s16 write to address {}", addr),
         }
     }
