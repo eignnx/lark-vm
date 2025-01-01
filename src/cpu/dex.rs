@@ -4,7 +4,7 @@ use bitvec::prelude::*;
 
 use crate::{cpu::decode, log_instr, utils::s16};
 
-use super::{opcodes, Cpu, Signal};
+use super::{opcodes, regs::Reg, Cpu, Signal};
 
 #[derive(Debug)]
 pub enum DexErr {
@@ -399,7 +399,26 @@ impl Cpu {
             opcodes::KRET => {
                 self.log(log_instr!([1] kret));
                 self.breakpoint();
-                self.pc = self.interrupt_return_address;
+                // Re-enable interrupts.
+                self.interrupts_enabled = true;
+                // Restore the PC from the K0 register.
+                self.pc = self.regs.get(Reg::K0);
+            }
+
+            // Disable interrupts.
+            opcodes::INRD => {
+                self.log(log_instr!([1] inrd));
+                self.breakpoint();
+                self.interrupts_enabled = false;
+                self.pc += 1;
+            }
+
+            // Enable interrupts.
+            opcodes::INRE => {
+                self.log(log_instr!([1] inre));
+                self.breakpoint();
+                self.interrupts_enabled = true;
+                self.pc += 1;
             }
 
             other => return Err(DexErr::InvalidOpcode(other)),

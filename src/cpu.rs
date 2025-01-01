@@ -87,6 +87,7 @@ pub struct Cpu {
     pub supervisor: Sender<Signal>,
     pub pending_interrupts: Receiver<Interrupt>,
     pub interrupt_return_address: u16,
+    pub interrupts_enabled: bool,
 
     pub in_debug_mode: bool,
     pub breakpoints: BTreeSet<u16>,
@@ -111,6 +112,7 @@ impl Cpu {
             supervisor: logger,
             pending_interrupts: interrupt_channel,
             interrupt_return_address: 0x0000,
+            interrupts_enabled: true,
 
             in_debug_mode: false,
             breakpoints: BTreeSet::new(),
@@ -126,6 +128,7 @@ impl Cpu {
         self.lo = s16::default();
         self.in_debug_mode = false;
         self.interrupt_return_address = 0x0000;
+        self.interrupts_enabled = true;
         self.mem.reset();
     }
 
@@ -150,9 +153,11 @@ impl Cpu {
 
     pub fn step(&mut self) -> Result<(), DexErr> {
         // First check for interrupts.
-        let pending = self.pending_interrupts.try_iter().collect::<Vec<_>>();
-        for interrupt in pending {
-            self.send_interrupt(interrupt);
+        if self.interrupts_enabled {
+            // If there are interrupts pending, send ONE (1) to the CPU.
+            if let Ok(interrupt) = self.pending_interrupts.try_recv() {
+                self.send_interrupt(interrupt);
+            }
         }
 
         self.fetch();
