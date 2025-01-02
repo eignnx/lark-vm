@@ -153,10 +153,17 @@ impl fmt::Display for RegisterFile {
         for (reg_name, r) in self.iter() {
             let signed = r.as_i16();
             let unsigned = r.as_u16();
-            writeln!(
+            write!(
                 f,
-                "${reg_name}: 0x{unsigned:04x}, 0d{unsigned:05}, {signed:+}"
+                "${reg_name}: 0x{unsigned:04x}, {unsigned:5}u, {signed:+5}",
             )?;
+
+            if let Ok(ch) = char::try_from(*unsigned as u32) {
+                if ch.is_ascii_graphic() {
+                    write!(f, ", {:?}", ch)?;
+                }
+            }
+            writeln!(f)?;
         }
         Ok(())
     }
