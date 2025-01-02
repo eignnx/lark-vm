@@ -53,7 +53,9 @@ impl Cpu {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
                 self.log(log_instr!([size] add rd, rs, rt));
                 self.breakpoint();
-                let sum: i16 = self.regs.get::<i16>(rs) + self.regs.get::<i16>(rt);
+                let x = self.regs.get::<i16>(rs);
+                let y = self.regs.get::<i16>(rt);
+                let sum: i16 = x.wrapping_add(y);
                 self.regs.set(rd, sum);
                 self.pc += size;
             }
@@ -62,7 +64,9 @@ impl Cpu {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
                 self.log(log_instr!([size] addu rd, rs, rt));
                 self.breakpoint();
-                let sum: u16 = self.regs.get::<u16>(rs) + self.regs.get::<u16>(rt);
+                let x = self.regs.get::<u16>(rs);
+                let y = self.regs.get::<u16>(rt);
+                let sum: u16 = x.wrapping_add(y);
                 self.regs.set(rd, sum);
                 self.pc += size;
             }
@@ -71,7 +75,7 @@ impl Cpu {
                 let (size, rd, rs, simm) = decode::reg_reg_simm(ir)?;
                 self.log(log_instr!([size] addi rd, rs, simm));
                 self.breakpoint();
-                let sum: i16 = self.regs.get::<i16>(rs) + simm;
+                let sum: i16 = self.regs.get::<i16>(rs).wrapping_add(simm);
                 self.regs.set(rd, sum);
                 self.pc += size;
             }
@@ -80,7 +84,9 @@ impl Cpu {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
                 self.log(log_instr!([size] sub rd, rs, rt));
                 self.breakpoint();
-                let diff: i16 = self.regs.get::<i16>(rs) - self.regs.get::<i16>(rt);
+                let x = self.regs.get::<i16>(rs);
+                let y = self.regs.get::<i16>(rt);
+                let diff: i16 = x.wrapping_sub(y);
                 self.regs.set(rd, diff);
                 self.pc += size;
             }
@@ -89,7 +95,9 @@ impl Cpu {
                 let (size, rd, rs, rt) = decode::reg_reg_reg(ir)?;
                 self.log(log_instr!([size] subu rd, rs, rt));
                 self.breakpoint();
-                let diff: u16 = self.regs.get::<u16>(rs) - self.regs.get::<u16>(rt);
+                let x = self.regs.get::<u16>(rs);
+                let y = self.regs.get::<u16>(rt);
+                let diff: u16 = x.wrapping_sub(y);
                 self.regs.set(rd, diff);
                 self.pc += size;
             }
@@ -98,7 +106,7 @@ impl Cpu {
                 let (size, rd, rs, simm) = decode::reg_reg_simm(ir)?;
                 self.log(log_instr!([size] subi rd, rs, simm));
                 self.breakpoint();
-                let diff: i16 = self.regs.get::<i16>(rs) - simm;
+                let diff: i16 = self.regs.get::<i16>(rs).wrapping_sub(simm);
                 self.regs.set(rd, diff);
                 self.pc += size;
             }
@@ -311,7 +319,7 @@ impl Cpu {
 
             opcodes::LW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                self.log(log_instr!([size] lw rd, rs, addr_offset));
+                self.log(log_instr!([size] lw rd, addr_offset, rs));
                 self.breakpoint();
                 let addr_base = self.regs.get(rs);
                 let value = self.mem_read_s16(addr_base, addr_offset);
@@ -321,7 +329,7 @@ impl Cpu {
 
             opcodes::LBU => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                self.log(log_instr!([size] lbu rd, rs, addr_offset));
+                self.log(log_instr!([size] lbu rd, addr_offset, rs));
                 self.breakpoint();
                 let addr_base = self.regs.get(rs);
                 let value = self.mem_read_u8(addr_base, addr_offset);
@@ -338,7 +346,7 @@ impl Cpu {
             //              value reg (rs)
             opcodes::SW => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                self.log(log_instr!([size] sw rd, rs, addr_offset));
+                self.log(log_instr!([size] sw addr_offset, rd, rs ));
                 self.breakpoint();
                 let addr_base = self.regs.get(rd);
                 let value = self.regs.get(rs);
@@ -348,7 +356,7 @@ impl Cpu {
 
             opcodes::SB => {
                 let (size, rd, rs, addr_offset) = decode::reg_reg_simm(ir)?;
-                self.log(log_instr!([size] sb rd, rs, addr_offset));
+                self.log(log_instr!([size] sb addr_offset, rd, rs));
                 self.breakpoint();
                 let addr_base = self.regs.get(rd);
                 let value = (self.regs.get::<u16>(rs) & 0x00FF) as u8;
