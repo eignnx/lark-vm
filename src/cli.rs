@@ -24,8 +24,7 @@ pub struct Cli {
 impl Cli {
     pub fn rom_src_path(&self) -> PathBuf {
         self.src_path
-            .as_ref()
-            .map(Clone::clone)
+            .clone()
             .unwrap_or_else(|| self.romfile.with_extension("").with_extension("lark"))
     }
 }
