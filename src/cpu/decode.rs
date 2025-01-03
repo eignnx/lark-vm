@@ -18,6 +18,9 @@ type InstrSize = u16;
 
 const OPCODE_BITS: usize = 6;
 const REG_BITS: usize = 4;
+const ADDR_BITS: usize = 16;
+const IMM10_BITS: usize = 10;
+const IMM16_BITS: usize = 16;
 
 #[derive(Debug, Clone, Copy)]
 pub enum DecodeErr {
@@ -53,15 +56,13 @@ const fn instr_size(arg_bits: usize) -> InstrSize {
 
 /// Decodes an immediate instruction.
 pub fn simm10(instr: Bits) -> (InstrSize, i16) {
-    const IMM_BITS: usize = 10;
-    let imm = instr[0..IMM_BITS].load_le::<i16>();
-    (instr_size(IMM_BITS), imm)
+    let imm = instr[0..IMM10_BITS].load_le::<i16>();
+    (instr_size(IMM10_BITS), imm)
 }
 
 pub fn imm10(instr: Bits) -> (InstrSize, u16) {
-    const IMM_BITS: usize = 10;
-    let imm = instr[0..IMM_BITS].load_le::<u16>();
-    (instr_size(IMM_BITS), imm)
+    let imm = instr[0..IMM10_BITS].load_le::<u16>();
+    (instr_size(IMM10_BITS), imm)
 }
 
 pub fn reg(instr: Bits) -> DecodeResult<(InstrSize, Reg)> {
@@ -103,7 +104,6 @@ pub fn reg_reg_reg(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg, Reg)> {
 
 /// Decodes an instruction with an address-offset immediate.
 pub fn addr(instr: Bits) -> (InstrSize, i16) {
-    const ADDR_BITS: usize = 16;
     let imm = instr[0..ADDR_BITS].load_le::<i16>();
     (instr_size(ADDR_BITS), imm)
 }
@@ -111,18 +111,16 @@ pub fn addr(instr: Bits) -> (InstrSize, i16) {
 /// Decodes a register-immediate instruction. Used for address immediates and
 /// value immediates.
 pub fn reg_simm(instr: Bits) -> DecodeResult<(InstrSize, Reg, i16)> {
-    const SIMM_BITS: usize = 16;
     let rd = instr[0..REG_BITS]
         .load_le::<u8>()
         .try_into()
         .map_err(DecodeErr::Rd)?;
-    let imm = instr[REG_BITS..][..SIMM_BITS].load_le::<i16>();
-    Ok((instr_size(REG_BITS + SIMM_BITS), rd, imm))
+    let imm = instr[REG_BITS..][..IMM16_BITS].load_le::<i16>();
+    Ok((instr_size(REG_BITS + IMM16_BITS), rd, imm))
 }
 
 /// Decodes a register-register-immediate instruction.
 pub fn reg_reg_simm(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg, i16)> {
-    const SIMM_BITS: usize = 10;
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
@@ -131,42 +129,42 @@ pub fn reg_reg_simm(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg, i16)> {
         .load_le::<u8>()
         .try_into()
         .map_err(DecodeErr::Rs)?;
-    let imm = instr[8..][..SIMM_BITS].load_le::<i16>();
-    Ok((instr_size(2 * REG_BITS + SIMM_BITS), rd, rs, imm))
+    let imm = instr[8..][..IMM10_BITS].load_le::<i16>();
+    Ok((instr_size(2 * REG_BITS + IMM10_BITS), rd, rs, imm))
 }
 
 /// Decodes a signed 16-bit immediate.
 pub fn simm16(instr: Bits) -> (InstrSize, i16) {
-    const IMM_BITS: usize = 16;
-    let imm = instr[0..IMM_BITS].load_le::<i16>();
-    (instr_size(IMM_BITS), imm)
+    let imm = instr[0..IMM16_BITS].load_le::<i16>();
+    (instr_size(IMM16_BITS), imm)
 }
 
 impl Instr {
     pub fn from_bits(bits: Bits) -> DecodeResult<Self> {
         let opcode = bits[0..OPCODE_BITS].load_le::<u8>();
+        let bits = &bits[OPCODE_BITS..];
 
         if let Ok(opcode) = OpcodeOp::try_from(opcode) {
             return Ok(Instr::O { opcode });
         }
 
         if let Ok(opcode) = OpcodeAddr::try_from(opcode) {
-            let (_size, offset) = addr(&bits[OPCODE_BITS..]);
+            let (_size, offset) = addr(bits);
             return Ok(Instr::A { opcode, offset });
         }
 
         if let Ok(opcode) = OpcodeImm::try_from(opcode) {
-            let (_size, imm10) = imm10(&bits[OPCODE_BITS..]);
+            let (_size, imm10) = imm10(bits);
             return Ok(Instr::I { opcode, imm10 });
         }
 
         if let Ok(opcode) = OpcodeReg::try_from(opcode) {
-            let (_size, reg) = reg(&bits[OPCODE_BITS..])?;
+            let (_size, reg) = reg(bits)?;
             return Ok(Instr::R { opcode, reg });
         }
 
         if let Ok(opcode) = OpcodeRegImm::try_from(opcode) {
-            let (_size, reg, simm) = reg_simm(&bits[OPCODE_BITS..])?;
+            let (_size, reg, simm) = reg_simm(bits)?;
             return Ok(Instr::RI {
                 opcode,
                 reg,
@@ -175,12 +173,12 @@ impl Instr {
         }
 
         if let Ok(opcode) = OpcodeRegReg::try_from(opcode) {
-            let (_size, reg1, reg2) = reg_reg(&bits[OPCODE_BITS..])?;
+            let (_size, reg1, reg2) = reg_reg(bits)?;
             return Ok(Instr::RR { opcode, reg1, reg2 });
         }
 
         if let Ok(opcode) = OpcodeRegRegReg::try_from(opcode) {
-            let (_size, reg1, reg2, reg3) = reg_reg_reg(&bits[OPCODE_BITS..])?;
+            let (_size, reg1, reg2, reg3) = reg_reg_reg(bits)?;
             return Ok(Instr::RRR {
                 opcode,
                 reg1,
@@ -190,7 +188,7 @@ impl Instr {
         }
 
         if let Ok(opcode) = OpcodeRegRegImm::try_from(opcode) {
-            let (_size, reg1, reg2, simm) = reg_reg_simm(&bits[OPCODE_BITS..])?;
+            let (_size, reg1, reg2, simm) = reg_reg_simm(bits)?;
             return Ok(Instr::RRI {
                 opcode,
                 reg1,
@@ -203,9 +201,6 @@ impl Instr {
     }
 
     pub fn size(&self) -> InstrSize {
-        const ADDR_BITS: usize = 16;
-        const IMM10_BITS: usize = 10;
-        const IMM16_BITS: usize = 16;
         match self {
             Instr::O { .. } => instr_size(0),
             Instr::A { .. } => instr_size(ADDR_BITS),
