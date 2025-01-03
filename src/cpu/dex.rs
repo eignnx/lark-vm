@@ -8,12 +8,12 @@ use super::{opcodes, regs::Reg, Cpu, Signal};
 
 #[derive(Debug)]
 pub enum DexErr {
-    RegDecodeError(decode::RegDecodeErr),
+    RegDecodeError(decode::DecodeErr),
     InvalidOpcode(u8),
 }
 
-impl From<decode::RegDecodeErr> for DexErr {
-    fn from(err: decode::RegDecodeErr) -> Self {
+impl From<decode::DecodeErr> for DexErr {
+    fn from(err: decode::DecodeErr) -> Self {
         DexErr::RegDecodeError(err)
     }
 }

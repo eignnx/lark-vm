@@ -4,7 +4,12 @@ use std::convert::TryInto;
 
 use bitvec::{prelude::*, slice::BitSlice};
 
-use super::regs::Reg;
+use crate::cpu::instr::{
+    OpcodeAddr, OpcodeImm, OpcodeOp, OpcodeReg, OpcodeRegImm, OpcodeRegReg, OpcodeRegRegImm,
+    OpcodeRegRegReg,
+};
+
+use super::{instr::Instr, regs::Reg};
 
 type Bits<'a> = &'a BitSlice<u32, Msb0>;
 
@@ -15,7 +20,9 @@ const OPCODE_BITS: usize = 6;
 const REG_BITS: usize = 4;
 
 #[derive(Debug, Clone, Copy)]
-pub enum RegDecodeErr {
+pub enum DecodeErr {
+    /// The instruction's opcode is invalid.
+    Opcode(u8),
     /// The instruction's destination register is invalid.
     Rd(u8),
     /// The instruction's first source register is invalid.
@@ -26,18 +33,19 @@ pub enum RegDecodeErr {
     Reg(u8),
 }
 
-impl std::fmt::Display for RegDecodeErr {
+impl std::fmt::Display for DecodeErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RegDecodeErr::Rd(rd) => write!(f, "decoded an invalid rd: {}", rd),
-            RegDecodeErr::Rs(rs) => write!(f, "decoded an invalid rs: {}", rs),
-            RegDecodeErr::Rt(rt) => write!(f, "decoded an invalid rt: {}", rt),
-            RegDecodeErr::Reg(reg) => write!(f, "decoded an invalid reg: {}", reg),
+            DecodeErr::Opcode(opcode) => write!(f, "decoded an invalid opcode: {}", opcode),
+            DecodeErr::Rd(rd) => write!(f, "decoded an invalid rd: {}", rd),
+            DecodeErr::Rs(rs) => write!(f, "decoded an invalid rs: {}", rs),
+            DecodeErr::Rt(rt) => write!(f, "decoded an invalid rt: {}", rt),
+            DecodeErr::Reg(reg) => write!(f, "decoded an invalid reg: {}", reg),
         }
     }
 }
 
-pub type RegDecodeResult<T> = Result<T, RegDecodeErr>;
+pub type DecodeResult<T> = Result<T, DecodeErr>;
 
 const fn instr_size(arg_bits: usize) -> InstrSize {
     ceil_div(OPCODE_BITS + arg_bits, 8) as InstrSize
@@ -56,40 +64,40 @@ pub fn imm10(instr: Bits) -> (InstrSize, u16) {
     (instr_size(IMM_BITS), imm)
 }
 
-pub fn reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg)> {
+pub fn reg(instr: Bits) -> DecodeResult<(InstrSize, Reg)> {
     let reg = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Reg)?;
+        .map_err(DecodeErr::Reg)?;
     Ok((instr_size(REG_BITS), reg))
 }
 
-pub fn reg_reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg)> {
+pub fn reg_reg(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg)> {
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rd)?;
+        .map_err(DecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rs)?;
+        .map_err(DecodeErr::Rs)?;
     Ok((instr_size(2 * REG_BITS), rd, rs))
 }
 
 /// Decodes a register-register-register instruction.
-pub fn reg_reg_reg(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg, Reg)> {
+pub fn reg_reg_reg(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg, Reg)> {
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rd)?;
+        .map_err(DecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rs)?;
+        .map_err(DecodeErr::Rs)?;
     let rt = instr[8..12]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rt)?;
+        .map_err(DecodeErr::Rt)?;
     Ok((instr_size(3 * REG_BITS), rd, rs, rt))
 }
 
@@ -102,36 +110,113 @@ pub fn addr(instr: Bits) -> (InstrSize, i16) {
 
 /// Decodes a register-immediate instruction. Used for address immediates and
 /// value immediates.
-pub fn reg_simm(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, i16)> {
+pub fn reg_simm(instr: Bits) -> DecodeResult<(InstrSize, Reg, i16)> {
     const SIMM_BITS: usize = 16;
     let rd = instr[0..REG_BITS]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rd)?;
+        .map_err(DecodeErr::Rd)?;
     let imm = instr[REG_BITS..][..SIMM_BITS].load_le::<i16>();
     Ok((instr_size(REG_BITS + SIMM_BITS), rd, imm))
 }
 
 /// Decodes a register-register-immediate instruction.
-pub fn reg_reg_simm(instr: Bits) -> RegDecodeResult<(InstrSize, Reg, Reg, i16)> {
+pub fn reg_reg_simm(instr: Bits) -> DecodeResult<(InstrSize, Reg, Reg, i16)> {
     const SIMM_BITS: usize = 10;
     let rd = instr[0..4]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rd)?;
+        .map_err(DecodeErr::Rd)?;
     let rs = instr[4..8]
         .load_le::<u8>()
         .try_into()
-        .map_err(RegDecodeErr::Rs)?;
+        .map_err(DecodeErr::Rs)?;
     let imm = instr[8..][..SIMM_BITS].load_le::<i16>();
     Ok((instr_size(2 * REG_BITS + SIMM_BITS), rd, rs, imm))
 }
 
 /// Decodes a signed 16-bit immediate.
-pub fn simm16(ir: &BitSlice<u32, Msb0>) -> (InstrSize, i16) {
+pub fn simm16(instr: Bits) -> (InstrSize, i16) {
     const IMM_BITS: usize = 16;
-    let imm = ir[0..IMM_BITS].load_le::<i16>();
+    let imm = instr[0..IMM_BITS].load_le::<i16>();
     (instr_size(IMM_BITS), imm)
+}
+
+impl Instr {
+    pub fn from_bits(bits: Bits) -> DecodeResult<Self> {
+        let opcode = bits[0..OPCODE_BITS].load_le::<u8>();
+
+        if let Ok(opcode) = OpcodeOp::try_from(opcode) {
+            return Ok(Instr::O { opcode });
+        }
+
+        if let Ok(opcode) = OpcodeAddr::try_from(opcode) {
+            let (_size, offset) = addr(&bits[OPCODE_BITS..]);
+            return Ok(Instr::A { opcode, offset });
+        }
+
+        if let Ok(opcode) = OpcodeImm::try_from(opcode) {
+            let (_size, imm10) = imm10(&bits[OPCODE_BITS..]);
+            return Ok(Instr::I { opcode, imm10 });
+        }
+
+        if let Ok(opcode) = OpcodeReg::try_from(opcode) {
+            let (_size, reg) = reg(&bits[OPCODE_BITS..])?;
+            return Ok(Instr::R { opcode, reg });
+        }
+
+        if let Ok(opcode) = OpcodeRegImm::try_from(opcode) {
+            let (_size, reg, simm) = reg_simm(&bits[OPCODE_BITS..])?;
+            return Ok(Instr::RI {
+                opcode,
+                reg,
+                imm: simm.into(),
+            });
+        }
+
+        if let Ok(opcode) = OpcodeRegReg::try_from(opcode) {
+            let (_size, reg1, reg2) = reg_reg(&bits[OPCODE_BITS..])?;
+            return Ok(Instr::RR { opcode, reg1, reg2 });
+        }
+
+        if let Ok(opcode) = OpcodeRegRegReg::try_from(opcode) {
+            let (_size, reg1, reg2, reg3) = reg_reg_reg(&bits[OPCODE_BITS..])?;
+            return Ok(Instr::RRR {
+                opcode,
+                reg1,
+                reg2,
+                reg3,
+            });
+        }
+
+        if let Ok(opcode) = OpcodeRegRegImm::try_from(opcode) {
+            let (_size, reg1, reg2, simm) = reg_reg_simm(&bits[OPCODE_BITS..])?;
+            return Ok(Instr::RRI {
+                opcode,
+                reg1,
+                reg2,
+                imm10: simm.into(),
+            });
+        }
+
+        Err(DecodeErr::Opcode(opcode))
+    }
+
+    pub fn size(&self) -> InstrSize {
+        const ADDR_BITS: usize = 16;
+        const IMM10_BITS: usize = 10;
+        const IMM16_BITS: usize = 16;
+        match self {
+            Instr::O { .. } => instr_size(0),
+            Instr::A { .. } => instr_size(ADDR_BITS),
+            Instr::I { .. } => instr_size(IMM10_BITS),
+            Instr::R { .. } => instr_size(REG_BITS),
+            Instr::RI { .. } => instr_size(REG_BITS + IMM16_BITS),
+            Instr::RR { .. } => instr_size(2 * REG_BITS),
+            Instr::RRR { .. } => instr_size(3 * REG_BITS),
+            Instr::RRI { .. } => instr_size(2 * REG_BITS + IMM10_BITS),
+        }
+    }
 }
 
 const fn ceil_div(a: usize, b: usize) -> usize {

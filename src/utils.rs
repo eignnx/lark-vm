@@ -1,3 +1,5 @@
+use core::fmt;
+
 /// Represents a signed or unsigned 16-bit number. The sign is determined by the
 /// user.
 #[allow(non_camel_case_types)]
@@ -72,5 +74,17 @@ impl From<s16> for bool {
 impl From<bool> for s16 {
     fn from(value: bool) -> Self {
         Self { u16: value as u16 }
+    }
+}
+
+impl fmt::Debug for s16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let signed = self.as_i16();
+        let unsigned = self.as_u16();
+        if signed < 0 {
+            write!(f, "s16{{{unsigned}u, {signed}i}}")
+        } else {
+            write!(f, "s16{{{unsigned}}}")
+        }
     }
 }
