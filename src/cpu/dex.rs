@@ -155,16 +155,14 @@ impl Cpu {
                     // Example: jral $rd, $rs
                     //                |    |
                     //          save pc    jump address
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] jral rd, rs));
                     self.breakpoint();
                     self.regs.set(rd, self.pc + size);
                     self.pc = self.regs.get(rs);
                 }
                 OpcodeRegReg::MV => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] mv rd, rs));
                     self.breakpoint();
                     let value: s16 = self.regs.get(rs);
@@ -172,8 +170,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::MUL => {
-                    let rs = reg1;
-                    let rt = reg2;
+                    let (rs, rt) = (reg1, reg2);
                     self.log(log_instr!([size] mul rs, rt));
                     self.breakpoint();
 
@@ -187,8 +184,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::MULU => {
-                    let rs = reg1;
-                    let rt = reg2;
+                    let (rs, rt) = (reg1, reg2);
                     self.log(log_instr!([size] mulu rs, rt));
                     self.breakpoint();
 
@@ -204,8 +200,7 @@ impl Cpu {
                 OpcodeRegReg::DIV => unimplemented!(),
                 OpcodeRegReg::DIVU => unimplemented!(),
                 OpcodeRegReg::NOT => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] not rd, rs));
                     self.breakpoint();
                     let value = !self.regs.get::<bool>(rs);
@@ -213,8 +208,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::NEG => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] neg rd, rs));
                     self.breakpoint();
                     let value = -self.regs.get::<i16>(rs);
@@ -222,8 +216,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::SEB => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] seb rd, rs));
                     self.breakpoint();
                     let value = (self.regs.get::<u16>(rs) & 0x00FF) as u8;
@@ -233,8 +226,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::TEZ => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] tez rd, rs));
                     self.breakpoint();
                     let value = self.regs.get::<u16>(rs) == 0u16;
@@ -242,8 +234,7 @@ impl Cpu {
                     self.pc += size;
                 }
                 OpcodeRegReg::TNZ => {
-                    let rd = reg1;
-                    let rs = reg2;
+                    let (rd, rs) = (reg1, reg2);
                     self.log(log_instr!([size] tnz rd, rs));
                     self.breakpoint();
                     let value = self.regs.get::<u16>(rs) != 0u16;
