@@ -1,150 +1,150 @@
 use num_enum::TryFromPrimitive;
 
-use super::regs::Reg;
+use super::{opcodes, regs::Reg};
 use crate::utils::s16;
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeOp {
     /// Halt
-    HALT = 0x01,
+    HALT = opcodes::HALT,
     /// No-Op
-    NOP = 0x02,
+    NOP = opcodes::NOP,
     /// Kernel Return (return from interrupt)
-    KRET = 0x0D,
+    KRET = opcodes::KRET,
     /// Interrupts Enable
-    INRE = 0x1C,
+    INRE = opcodes::INRE,
     /// Interrupts Disable
-    INRD = 0x1D,
+    INRD = opcodes::INRD,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeAddr {
     /// Jump (absolute)
-    J = 0x08,
+    J = opcodes::J,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeImm {
     /// Exception
-    EXN = 0x00,
+    EXN = opcodes::EXN,
     /// Kernel Call
-    KCALL = 0x0E,
+    KCALL = opcodes::KCALL,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeReg {
     /// Jump Register
-    JR = 0x09,
+    JR = opcodes::JR,
     /// Move Low ($LO)
-    MVLO = 0x2A,
+    MVLO = opcodes::MVLO,
     /// Move Hight ($HI)
-    MVHI = 0x2B,
+    MVHI = opcodes::MVHI,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeRegImm {
     /// Jump And Link
-    JAL = 0x0A,
+    JAL = opcodes::JAL,
     /// Branch if True
-    BT = 0x0C,
+    BT = opcodes::BT,
     /// Branch if False
-    BF = 0x0F,
+    BF = opcodes::BF,
     /// Load Immediate
-    LI = 0x10,
+    LI = opcodes::LI,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeRegReg {
     /// Jump Register And Link
-    JRAL = 0x0B,
+    JRAL = opcodes::JRAL,
     /// Move
-    MV = 0x14,
+    MV = opcodes::MV,
     /// Multiply
-    MUL = 0x22,
+    MUL = opcodes::MUL,
     /// Divide
-    DIV = 0x23,
+    DIV = opcodes::DIV,
     /// Not (boolean operation)
-    NOT = 0x27,
+    NOT = opcodes::NOT,
     /// Negate
-    NEG = 0x2F,
+    NEG = opcodes::NEG,
     /// Multiply Unsigned
-    MULU = 0x32,
+    MULU = opcodes::MULU,
     /// Divide Unsigned
-    DIVU = 0x33,
+    DIVU = opcodes::DIVU,
     /// Sign Extend Byte
-    SEB = 0x37,
+    SEB = opcodes::SEB,
     /// Test Equal to Zero
-    TEZ = 0x3E,
+    TEZ = opcodes::TEZ,
     /// Test Non-Zero
-    TNZ = 0x3F,
+    TNZ = opcodes::TNZ,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeRegRegReg {
     /// Add
-    ADD = 0x20,
+    ADD = opcodes::ADD,
     /// Subtract
-    SUB = 0x21,
+    SUB = opcodes::SUB,
     /// Or (boolean operation)
-    OR = 0x24,
+    OR = opcodes::OR,
     /// Xor (exclusive-or)
-    XOR = 0x25,
+    XOR = opcodes::XOR,
     /// And (boolean operation)
-    AND = 0x26,
+    AND = opcodes::AND,
     /// Add Unsigned
-    ADDU = 0x30,
+    ADDU = opcodes::ADDU,
     /// Subtract Unsigned
-    SUBU = 0x31,
+    SUBU = opcodes::SUBU,
     /// Shift Left
-    SHL = 0x34,
+    SHL = opcodes::SHL,
     /// Shift Right (shifts zeros into the most-significant-bit of the word)
-    SHR = 0x35,
+    SHR = opcodes::SHR,
     /// Shift Right Arithmetic (shifts sign bit into the most-significant-bit of the word)
-    SHRA = 0x36,
+    SHRA = opcodes::SHRA,
     /// Test Less Than
-    TLT = 0x38,
+    TLT = opcodes::TLT,
     /// Test Greater or Equal
-    TGE = 0x39,
+    TGE = opcodes::TGE,
     /// Test Equal
-    TEQ = 0x3A,
+    TEQ = opcodes::TEQ,
     /// Test Not Equal
-    TNE = 0x3B,
+    TNE = opcodes::TNE,
     /// Test Less Than Unsigned
-    TLTU = 0x3C,
+    TLTU = opcodes::TLTU,
     /// Test Greater or Equal Unsigned
-    TGEU = 0x3D,
+    TGEU = opcodes::TGEU,
 }
 
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 #[repr(u8)]
 pub enum OpcodeRegRegImm {
     /// Load Word
-    LW = 0x11,
+    LW = opcodes::LW,
     /// Load Byte Signed
-    LBS = 0x12,
+    LBS = opcodes::LBS,
     /// Load Byte Unsigned
-    LBU = 0x13,
+    LBU = opcodes::LBU,
     /// Store Word
-    SW = 0x15,
+    SW = opcodes::SW,
     /// Store Byte
-    SB = 0x16,
+    SB = opcodes::SB,
     /// Add Immediate
-    ADDI = 0x28,
+    ADDI = opcodes::ADDI,
     /// Subtract Immediate
-    SUBI = 0x29,
+    SUBI = opcodes::SUBI,
     /// Or Immediate
-    ORI = 0x2C,
+    ORI = opcodes::ORI,
     /// Xor Immediate
-    XORI = 0x2D,
+    XORI = opcodes::XORI,
     /// And Immediate
-    ANDI = 0x2E,
+    ANDI = opcodes::ANDI,
 }
 
 #[derive(Debug, Clone, Copy)]
