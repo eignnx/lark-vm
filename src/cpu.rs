@@ -13,6 +13,7 @@ mod debugger;
 mod decode;
 mod dex;
 mod exn_codes;
+pub mod instr;
 pub mod interrupts;
 mod opcodes;
 mod regs;
@@ -208,8 +209,8 @@ impl Cpu {
 
     #[allow(clippy::identity_op)]
     pub fn fetch(&mut self) {
-        let lo = *self.mem.read_s16(self.pc + 2).as_u16() as u32;
-        let hi = *self.mem.read_s16(self.pc + 0).as_u16() as u32;
+        let lo = self.mem.read_s16(self.pc + 2).as_u16() as u32;
+        let hi = self.mem.read_s16(self.pc + 0).as_u16() as u32;
         self.ir = (hi << 16) | (lo << 0);
     }
 }

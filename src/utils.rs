@@ -10,16 +10,16 @@ pub union s16 {
 impl s16 {
     pub const ZERO: Self = Self { u16: 0 };
 
-    pub fn as_u16(&self) -> &u16 {
-        unsafe { &self.u16 }
+    pub fn as_u16(&self) -> u16 {
+        unsafe { self.u16 }
     }
 
     pub fn as_u16_mut(&mut self) -> &mut u16 {
         unsafe { &mut self.u16 }
     }
 
-    pub fn as_i16(&self) -> &i16 {
-        unsafe { &self.i16 }
+    pub fn as_i16(&self) -> i16 {
+        unsafe { self.i16 }
     }
 
     pub fn as_i16_mut(&mut self) -> &mut i16 {

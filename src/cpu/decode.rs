@@ -39,24 +39,6 @@ impl std::fmt::Display for RegDecodeErr {
 
 pub type RegDecodeResult<T> = Result<T, RegDecodeErr>;
 
-const fn ceil_div(a: usize, b: usize) -> usize {
-    (a + b - 1) / b
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ceil_div() {
-        assert_eq!(ceil_div(10, 3), 4);
-        assert_eq!(ceil_div(15, 5), 3);
-        assert_eq!(ceil_div(7, 2), 4);
-        assert_eq!(ceil_div(100, 10), 10);
-        assert_eq!(ceil_div(0, 5), 0);
-    }
-}
-
 const fn instr_size(arg_bits: usize) -> InstrSize {
     ceil_div(OPCODE_BITS + arg_bits, 8) as InstrSize
 }
@@ -150,4 +132,22 @@ pub fn simm16(ir: &BitSlice<u32, Msb0>) -> (InstrSize, i16) {
     const IMM_BITS: usize = 16;
     let imm = ir[0..IMM_BITS].load_le::<i16>();
     (instr_size(IMM_BITS), imm)
+}
+
+const fn ceil_div(a: usize, b: usize) -> usize {
+    (a + b - 1) / b
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ceil_div() {
+        assert_eq!(ceil_div(10, 3), 4);
+        assert_eq!(ceil_div(15, 5), 3);
+        assert_eq!(ceil_div(7, 2), 4);
+        assert_eq!(ceil_div(100, 10), 10);
+        assert_eq!(ceil_div(0, 5), 0);
+    }
 }

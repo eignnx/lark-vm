@@ -118,8 +118,8 @@ impl Cpu {
                     eprintln!("\t${regname} = 0x{v:04X} = {v}", v = regval.as_u16());
                 }
                 eprintln!("special-purpose registers:");
-                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Lo, v = *self.lo.as_u16());
-                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Hi, v = *self.hi.as_u16());
+                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Lo, v = self.lo.as_u16());
+                eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Hi, v = self.hi.as_u16());
                 eprintln!("\t${} = 0x{v:04X} = {v}", Spr::Pc, v = self.pc,);
                 eprintln!("\t${} = 0x{v:08X} = {v} = 0b{v:032b}", Spr::Ir, v = self.ir);
             }
@@ -133,13 +133,13 @@ impl Cpu {
             DbgVal::Spr(spr) => match spr {
                 Spr::Pc => self.pc,
                 Spr::Ir => unreachable!(),
-                Spr::Lo => *self.lo.as_u16(),
-                Spr::Hi => *self.hi.as_u16(),
+                Spr::Lo => self.lo.as_u16(),
+                Spr::Hi => self.hi.as_u16(),
             },
             DbgVal::Mem { base, offset } => {
                 let base = self.eval_dbg_val_rvalue(base);
                 let offset = self.eval_dbg_val_rvalue(offset) as i16;
-                *self.mem_read_s16(base, offset).as_u16()
+                self.mem_read_s16(base, offset).as_u16()
             }
             DbgVal::Neg(val) => self.eval_dbg_val_rvalue(val).wrapping_neg(),
         }
@@ -158,8 +158,8 @@ impl Cpu {
                 let prev = match spr {
                     Spr::Pc => self.pc,
                     Spr::Ir => unreachable!(),
-                    Spr::Lo => *self.lo.as_u16(),
-                    Spr::Hi => *self.hi.as_u16(),
+                    Spr::Lo => self.lo.as_u16(),
+                    Spr::Hi => self.hi.as_u16(),
                 };
                 match spr {
                     Spr::Pc => self.pc = rhs,
@@ -171,8 +171,8 @@ impl Cpu {
             }
             DbgVal::Mem { base, offset } => {
                 let base = self.eval_dbg_val_rvalue(base);
-                let offset = *s16::from(self.eval_dbg_val_rvalue(offset)).as_i16();
-                let prev = *self.mem_read_s16(base, offset).as_u16();
+                let offset = s16::from(self.eval_dbg_val_rvalue(offset)).as_i16();
+                let prev = self.mem_read_s16(base, offset).as_u16();
                 self.mem_write_s16(base, offset, rhs.into());
                 prev
             }
@@ -184,7 +184,7 @@ impl Cpu {
         let sp = self.regs.get(Reg::Sp);
         let mut addr = sp;
         for i in 0..depth {
-            let value = *self.mem_read_s16(addr, 0).as_u16();
+            let value = self.mem_read_s16(addr, 0).as_u16();
             eprintln!("[$sp+{:02}] = 0x{value:04X} = {value:06}", 2 * i);
             addr += 2;
         }

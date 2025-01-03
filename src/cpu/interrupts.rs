@@ -21,7 +21,7 @@ impl Cpu {
         self.regs.set(Reg::K0, self.pc);
 
         // Jump to the interrupt handler.
-        let handler_address = *self.mem.read_s16(interrupt as u16).as_u16();
+        let handler_address = self.mem.read_s16(interrupt as u16).as_u16();
         self.pc = handler_address;
     }
 }
