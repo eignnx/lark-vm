@@ -41,7 +41,7 @@ pub enum OpcodeReg {
     JR = opcodes::JR,
     /// Move Low ($LO)
     MVLO = opcodes::MVLO,
-    /// Move Hight ($HI)
+    /// Move High ($HI)
     MVHI = opcodes::MVHI,
 }
 
