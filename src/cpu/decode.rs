@@ -50,6 +50,7 @@ impl std::fmt::Display for DecodeErr {
 
 pub type DecodeResult<T> = Result<T, DecodeErr>;
 
+/// Returns the size of an instruction in bytes.
 const fn instr_size(arg_bits: usize) -> InstrSize {
     ceil_div(OPCODE_BITS + arg_bits, 8) as InstrSize
 }
@@ -200,7 +201,7 @@ impl Instr {
         Err(DecodeErr::Opcode(opcode))
     }
 
-    pub fn size(&self) -> InstrSize {
+    pub const fn instr_size(&self) -> InstrSize {
         match self {
             Instr::O { .. } => instr_size(0),
             Instr::A { .. } => instr_size(ADDR_BITS),
