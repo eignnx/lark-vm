@@ -15,8 +15,8 @@ mod dex;
 mod exn_codes;
 pub mod instr;
 pub mod interrupts;
-mod opcodes;
-mod regs;
+pub mod opcodes;
+pub mod regs;
 
 pub const KIB: usize = 1024;
 pub const STACK_INIT: u16 = Memory::USER_END - 1;

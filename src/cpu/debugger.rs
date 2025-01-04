@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{cpu::regs, utils::s16};
+use crate::utils::s16;
 
 use super::{regs::Reg, Cpu};
 
@@ -294,7 +294,7 @@ impl DbgVal {
                 opt('$'),
                 alt((
                     // Try parsing a general-purpose register.
-                    alt(regs::REG_NAMES).parse_to().map(Self::Gpr),
+                    alt(Reg::NAMES).parse_to().map(Self::Gpr),
                     // Try parsing a special-purpose register.
                     alt(SPR_NAMES).parse_to().map(Self::Spr),
                 )),

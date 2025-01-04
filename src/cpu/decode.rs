@@ -151,12 +151,18 @@ impl Instr {
 
         if let Ok(opcode) = OpcodeAddr::try_from(opcode) {
             let (_size, offset) = addr(bits);
-            return Ok(Instr::A { opcode, offset });
+            return Ok(Instr::A {
+                opcode,
+                offset: offset.into(),
+            });
         }
 
         if let Ok(opcode) = OpcodeImm::try_from(opcode) {
             let (_size, imm10) = imm10(bits);
-            return Ok(Instr::I { opcode, imm10 });
+            return Ok(Instr::I {
+                opcode,
+                imm10: imm10.into(),
+            });
         }
 
         if let Ok(opcode) = OpcodeReg::try_from(opcode) {

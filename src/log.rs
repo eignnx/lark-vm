@@ -25,7 +25,7 @@ macro_rules! log_instr {
                         (Some($crate::cpu::ArgStyle::Reg), $firstargval.to_string())
                     },
                     _ => {
-                        (None, format!("{}={}", stringify!($firstargval), $firstargval))
+                        (None, format!("{}={:?}", stringify!($firstargval), $firstargval))
                     }
                 },
 

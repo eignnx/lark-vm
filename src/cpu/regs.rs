@@ -47,10 +47,38 @@ impl fmt::Display for Reg {
     }
 }
 
-pub const REG_NAMES: [&str; 16] = [
-    "zero", "rv", "ra", "a0", "a1", "a2", "s0", "s1", "s2", "t0", "t1", "t2", "k0", "k1", "gp",
-    "sp",
-];
+impl Reg {
+    pub const CALLER_SAVED: [Self; 8] = [
+        Self::T0,
+        Self::T1,
+        Self::T2,
+        Self::A0,
+        Self::A1,
+        Self::A2,
+        Self::Rv,
+        Self::Ra,
+    ];
+
+    pub const CALLEE_SAVED: [Self; 3] = [Self::S0, Self::S1, Self::S2];
+
+    pub const GENERAL_PURPOSE: [Self; 9] = [
+        Self::Rv,
+        // Self::Ra, // TODO: Should this be here?
+        Self::T0,
+        Self::T1,
+        Self::T2,
+        Self::A0,
+        Self::A1,
+        Self::A2,
+        Self::S0,
+        Self::S1,
+    ];
+
+    pub const NAMES: [&str; 16] = [
+        "zero", "rv", "ra", "a0", "a1", "a2", "s0", "s1", "s2", "t0", "t1", "t2", "k0", "k1", "gp",
+        "sp",
+    ];
+}
 
 impl FromStr for Reg {
     type Err = String;

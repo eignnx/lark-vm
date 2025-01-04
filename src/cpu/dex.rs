@@ -70,7 +70,7 @@ impl Cpu {
                     self.log(log_instr!([size] j offset));
                     self.breakpoint();
                     self.pc = (self.pc as i32)
-                        .checked_add(offset as i32)
+                        .checked_add(offset.as_i16() as i32)
                         .expect("Jump address overflow") as u16;
                 }
             },
@@ -79,7 +79,7 @@ impl Cpu {
                 OpcodeImm::EXN => {
                     self.log(log_instr!([size] exn imm10));
                     self.breakpoint();
-                    self.handle_exn(imm10);
+                    self.handle_exn(imm10.as_u16());
                     self.pc += size;
                 }
                 OpcodeImm::KCALL => unimplemented!(),

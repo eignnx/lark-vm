@@ -148,44 +148,44 @@ pub enum OpcodeRegRegImm {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Instr {
+pub enum Instr<R = Reg, Imm = s16> {
     /// No arguments, opcode only
     O { opcode: OpcodeOp },
     /// Single address argument
-    A { opcode: OpcodeAddr, offset: i16 },
+    A { opcode: OpcodeAddr, offset: Imm },
     /// Single immediate argument
     I {
         opcode: OpcodeImm,
         /// A 10-bit immediate.
-        imm10: u16,
+        imm10: Imm,
     },
     /// Single register argument
-    R { opcode: OpcodeReg, reg: Reg },
+    R { opcode: OpcodeReg, reg: R },
     /// One register and one immediate arguments
     RI {
         opcode: OpcodeRegImm,
-        reg: Reg,
-        imm: s16,
+        reg: R,
+        imm: Imm,
     },
     /// Two register arguments
     RR {
         opcode: OpcodeRegReg,
-        reg1: Reg,
-        reg2: Reg,
+        reg1: R,
+        reg2: R,
     },
     /// Three register arguments
     RRR {
         opcode: OpcodeRegRegReg,
-        reg1: Reg,
-        reg2: Reg,
-        reg3: Reg,
+        reg1: R,
+        reg2: R,
+        reg3: R,
     },
     /// Two register and one immediate arguments
     RRI {
         opcode: OpcodeRegRegImm,
-        reg1: Reg,
-        reg2: Reg,
+        reg1: R,
+        reg2: R,
         /// A 10-bit immediate.
-        imm10: s16,
+        imm10: Imm,
     },
 }
