@@ -26,22 +26,22 @@ pub enum Reg {
 impl fmt::Display for Reg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
-            Self::Zero => "zero",
-            Self::Rv => "rv",
-            Self::Ra => "ra",
-            Self::A0 => "a0",
-            Self::A1 => "a1",
-            Self::A2 => "a2",
-            Self::S0 => "s0",
-            Self::S1 => "s1",
-            Self::S2 => "s2",
-            Self::T0 => "t0",
-            Self::T1 => "t1",
-            Self::T2 => "t2",
-            Self::K0 => "k0",
-            Self::K1 => "k1",
-            Self::Gp => "gp",
-            Self::Sp => "sp",
+            Self::Zero => "$zero",
+            Self::Rv => "$rv",
+            Self::Ra => "$ra",
+            Self::A0 => "$a0",
+            Self::A1 => "$a1",
+            Self::A2 => "$a2",
+            Self::S0 => "$s0",
+            Self::S1 => "$s1",
+            Self::S2 => "$s2",
+            Self::T0 => "$t0",
+            Self::T1 => "$t1",
+            Self::T2 => "$t2",
+            Self::K0 => "$k0",
+            Self::K1 => "$k1",
+            Self::Gp => "$gp",
+            Self::Sp => "$sp",
         };
         write!(f, "{}", name)
     }
@@ -74,10 +74,37 @@ impl Reg {
         Self::S1,
     ];
 
+    pub const ARGUMENT: [Self; 3] = [Self::A0, Self::A1, Self::A2];
+
     pub const NAMES: [&str; 16] = [
         "zero", "rv", "ra", "a0", "a1", "a2", "s0", "s1", "s2", "t0", "t1", "t2", "k0", "k1", "gp",
         "sp",
     ];
+
+    pub fn is_callee_saved(&self) -> bool {
+        match self {
+            Self::T0
+            | Self::T1
+            | Self::T2
+            | Self::A0
+            | Self::A1
+            | Self::A2
+            | Self::Rv
+            | Self::Ra => true,
+            Self::Zero
+            | Self::S0
+            | Self::S1
+            | Self::S2
+            | Self::K0
+            | Self::K1
+            | Self::Gp
+            | Self::Sp => false,
+        }
+    }
+
+    pub fn is_argument(&self) -> bool {
+        matches!(self, Self::A0 | Self::A1 | Self::A2)
+    }
 }
 
 impl FromStr for Reg {
