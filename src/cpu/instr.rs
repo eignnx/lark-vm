@@ -6,6 +6,7 @@ use crate::utils::s16;
 /// You probably want to `use ops::*;` since theres a lot of these.
 pub mod ops {
     use core::fmt;
+    use std::str::FromStr;
 
     use num_enum::TryFromPrimitive;
 
@@ -39,10 +40,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeOp {
-        type Error = ();
+    impl FromStr for OpcodeOp {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "halt" => Ok(Self::HALT),
                 "nop" => Ok(Self::NOP),
@@ -70,10 +71,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeAddr {
-        type Error = ();
+    impl FromStr for OpcodeAddr {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "j" => Ok(Self::J),
                 _ => Err(()),
@@ -100,10 +101,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeImm {
-        type Error = ();
+    impl FromStr for OpcodeImm {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "exn" => Ok(Self::EXN),
                 "kcall" => Ok(Self::KCALL),
@@ -134,10 +135,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeReg {
-        type Error = ();
+    impl FromStr for OpcodeReg {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "jr" => Ok(Self::JR),
                 "mvlo" => Ok(Self::MVLO),
@@ -172,10 +173,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeRegImm {
-        type Error = ();
+    impl FromStr for OpcodeRegImm {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "jal" => Ok(Self::JAL),
                 "bt" => Ok(Self::BT),
@@ -232,10 +233,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeRegReg {
-        type Error = ();
+    impl FromStr for OpcodeRegReg {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "jral" => Ok(Self::JRAL),
                 "mv" => Ok(Self::MV),
@@ -314,10 +315,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeRegRegReg {
-        type Error = ();
+    impl FromStr for OpcodeRegRegReg {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "add" => Ok(Self::ADD),
                 "sub" => Ok(Self::SUB),
@@ -383,10 +384,10 @@ pub mod ops {
         }
     }
 
-    impl TryFrom<&str> for OpcodeRegRegImm {
-        type Error = ();
+    impl FromStr for OpcodeRegRegImm {
+        type Err = ();
 
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
             match value {
                 "lw" => Ok(Self::LW),
                 "lbs" => Ok(Self::LBS),
