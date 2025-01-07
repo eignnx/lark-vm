@@ -4,10 +4,7 @@ use std::convert::TryInto;
 
 use bitvec::{prelude::*, slice::BitSlice};
 
-use crate::cpu::instr::{
-    OpcodeAddr, OpcodeImm, OpcodeOp, OpcodeReg, OpcodeRegImm, OpcodeRegReg, OpcodeRegRegImm,
-    OpcodeRegRegReg,
-};
+use crate::cpu::instr::ops::*;
 
 use super::{instr::Instr, regs::Reg};
 

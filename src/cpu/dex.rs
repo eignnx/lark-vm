@@ -5,10 +5,7 @@ use bitvec::prelude::*;
 use crate::{cpu::decode, log_instr, utils::s16};
 
 use super::{
-    instr::{
-        Instr, OpcodeAddr, OpcodeImm, OpcodeOp, OpcodeReg, OpcodeRegImm, OpcodeRegReg,
-        OpcodeRegRegImm, OpcodeRegRegReg,
-    },
+    instr::{ops::*, Instr},
     regs::Reg,
     Cpu, Signal,
 };
