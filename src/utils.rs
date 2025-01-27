@@ -92,6 +92,6 @@ impl fmt::Debug for s16 {
 impl fmt::Display for s16 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let unsigned = self.as_u16();
-        write!(f, "0x{unsigned:04x}s16",)
+        write!(f, "0x{unsigned:04X}s16",)
     }
 }

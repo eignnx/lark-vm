@@ -454,23 +454,36 @@ impl<R: fmt::Display, Imm: fmt::Display> fmt::Display for Instr<R, Imm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Instr::O { opcode } => write!(f, "{opcode}"),
-            Instr::A { opcode, offset } => write!(f, "{opcode} {offset}"),
-            Instr::I { opcode, imm10 } => write!(f, "{opcode} {imm10}"),
-            Instr::R { opcode, reg } => write!(f, "{opcode} {reg}"),
-            Instr::RI { opcode, reg, imm } => write!(f, "{opcode} {reg}, {imm}"),
-            Instr::RR { opcode, reg1, reg2 } => write!(f, "{opcode} {reg1}, {reg2}"),
+            Instr::A { opcode, offset } => write!(f, "{opcode}\t{offset}"),
+            Instr::I { opcode, imm10 } => write!(f, "{opcode}\t{imm10}"),
+            Instr::R { opcode, reg } => write!(f, "{opcode}\t{reg}"),
+            Instr::RI { opcode, reg, imm } => write!(f, "{opcode}\t{reg}, {imm}"),
+            Instr::RR { opcode, reg1, reg2 } => write!(f, "{opcode}\t{reg1}, {reg2}"),
             Instr::RRR {
                 opcode,
                 reg1,
                 reg2,
                 reg3,
-            } => write!(f, "{opcode} {reg1}, {reg2}, {reg3}"),
+            } => write!(f, "{opcode}\t{reg1}, {reg2}, {reg3}"),
+
             Instr::RRI {
                 opcode,
                 reg1,
                 reg2,
                 imm10,
-            } => write!(f, "{opcode} {reg1}, {reg2}, imm={imm10}"),
+            } => match opcode {
+                OpcodeRegRegImm::LW | OpcodeRegRegImm::LBU | OpcodeRegRegImm::LBS => {
+                    write!(f, "{opcode}\t{reg1}, {imm10}({reg2})")
+                }
+                OpcodeRegRegImm::SW | OpcodeRegRegImm::SB => {
+                    write!(f, "{opcode}\t{imm10}({reg1}), {reg2}")
+                }
+                OpcodeRegRegImm::ADDI
+                | OpcodeRegRegImm::SUBI
+                | OpcodeRegRegImm::ORI
+                | OpcodeRegRegImm::XORI
+                | OpcodeRegRegImm::ANDI => write!(f, "{opcode}\t{reg1}, {reg2}, {imm10}"),
+            },
         }
     }
 }

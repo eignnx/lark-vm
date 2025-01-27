@@ -204,6 +204,34 @@ impl Instr {
         Err(DecodeErr::Opcode(opcode))
     }
 
+    pub fn disassemble(out: &mut Vec<Self>, mut machine_code: &[u8]) -> DecodeResult<()> {
+        /// Returns None if there are no more instructions to fetch.
+        /// # Example
+        /// - `&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, ..]` -> `Some(0xAABBCCDD)`
+        /// - `&[0xAA, 0xBB]` -> `Some(0xAABB0000)`
+        /// - `&[0xAA]` -> `Some(0xAA000000)`
+        /// - `&[]` -> `None`
+        fn fetch_ir(machine_code: &[u8]) -> Option<u32> {
+            match machine_code {
+                [b0, b1, b2, b3, _rest @ ..] => Some(u32::from_be_bytes([*b0, *b1, *b2, *b3])),
+                [b0, b1, b2] => Some(u32::from_be_bytes([*b0, *b1, *b2, 0])),
+                [b0, b1] => Some(u32::from_be_bytes([*b0, *b1, 0, 0])),
+                [b0] => Some(u32::from_be_bytes([*b0, 0, 0, 0])),
+                [] => None,
+            }
+        }
+
+        while let Some(ir) = fetch_ir(machine_code) {
+            let bits = ir.view_bits::<Msb0>();
+            let instr = Instr::from_bits(bits)?;
+            out.push(instr);
+            let nbytes = instr.instr_size() as usize;
+            machine_code = &machine_code[nbytes..];
+        }
+
+        Ok(())
+    }
+
     pub const fn instr_size(&self) -> InstrSize {
         match self {
             Instr::O { .. } => instr_size(0),

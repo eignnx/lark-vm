@@ -81,6 +81,7 @@ impl Reg {
         "sp",
     ];
 
+    #[inline]
     pub fn is_callee_saved(&self) -> bool {
         match self {
             Self::T0
@@ -101,9 +102,29 @@ impl Reg {
             | Self::Sp => false,
         }
     }
+    #[inline]
+    pub fn is_ret_related(&self) -> bool {
+        matches!(self, Self::Rv | Self::Ra)
+    }
 
+    #[inline]
     pub fn is_argument(&self) -> bool {
         matches!(self, Self::A0 | Self::A1 | Self::A2)
+    }
+
+    #[inline]
+    pub fn is_saved(&self) -> bool {
+        matches!(self, Self::S0 | Self::S1 | Self::S2)
+    }
+
+    #[inline]
+    pub fn is_temporary(&self) -> bool {
+        matches!(self, Self::T0 | Self::T1 | Self::T2)
+    }
+
+    #[inline]
+    pub fn is_kernel(&self) -> bool {
+        matches!(self, Self::K0 | Self::K1)
     }
 }
 
@@ -210,7 +231,7 @@ impl fmt::Display for RegisterFile {
             let unsigned = r.as_u16();
             write!(
                 f,
-                "${reg_name}: 0x{unsigned:04x}, {unsigned:5}u, {signed:+5}",
+                "{reg_name}: 0x{unsigned:04X}, {unsigned:5}u, {signed:+5}",
             )?;
 
             if let Ok(ch) = char::try_from(unsigned as u32) {

@@ -10,7 +10,7 @@ use self::{dex::DexErr, interrupts::Interrupt, regs::RegisterFile};
 use crate::utils::s16;
 
 mod debugger;
-mod decode;
+pub mod decode;
 mod dex;
 mod exn_codes;
 pub mod instr;
@@ -396,6 +396,12 @@ impl<const N: usize> MemBlock<N> {
         }
         mem[..vec.len()].copy_from_slice(&vec);
         Some(Self { mem })
+    }
+}
+
+impl<const N: usize> AsRef<[u8]> for MemBlock<N> {
+    fn as_ref(&self) -> &[u8] {
+        &self.mem[..]
     }
 }
 
